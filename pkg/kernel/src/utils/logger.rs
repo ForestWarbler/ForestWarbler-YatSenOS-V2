@@ -1,11 +1,27 @@
 use log::{Metadata, Record};
+use core::fmt::Write;
 
-pub fn init() {
+pub fn parse_log_level(level: &str) -> log::LevelFilter {
+    match level {
+        "error" => log::LevelFilter::Error,
+        "warn" => log::LevelFilter::Warn,
+        "info" => log::LevelFilter::Info,
+        "debug" => log::LevelFilter::Debug,
+        "trace" => log::LevelFilter::Trace,
+        _ => log::LevelFilter::Info,
+    }
+}
+
+pub fn init(log_level_str: &str) {
     static LOGGER: Logger = Logger;
     log::set_logger(&LOGGER).unwrap();
 
     // FIXME: Configure the logger
-    log::set_max_level(log::LevelFilter::Trace);
+    // log::set_max_level(log::LevelFilter::Trace);
+
+    let max_level = parse_log_level(log_level_str);
+
+    log::set_max_level(max_level);
 
     info!("Logger Initialized.");
 }

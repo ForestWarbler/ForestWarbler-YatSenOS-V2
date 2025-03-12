@@ -1,5 +1,6 @@
 use core::fmt;
 use x86_64::instructions::port::Port;
+use bitflags::bitflags;
 
 /// A port-mapped UART 16550 serial interface.
 pub struct SerialPort;
@@ -19,22 +20,39 @@ impl SerialPort {
         let mut line_control: Port<u8> = Port::new(base + 3);
         let mut modem_control: Port<u8> = Port::new(base + 4);
 
+        bitflags! {
+            pub struct LineControlFlags: u8 {
+                const DATA_BITS_5 = 0x00;
+                const DATA_BITS_6 = 0x01;
+                const DATA_BITS_7 = 0x02;
+                const DATA_BITS_8 = 0x03;
+                const STOP_BITS_1 = 0x00;
+                const STOP_BITS_2 = 0x04;
+                const PARITY_NONE = 0x00;
+                const PARITY_ODD = 0x08;
+                const PARITY_EVEN = 0x18;
+                const PARITY_MARK = 0x28;
+                const PARITY_SPACE = 0x38;
+                const DLAB = 0x80;
+            }
+        }
+
         unsafe {
-            interrupt_enable.write(0x00u8);
-            line_control.write(0x80u8);
-            buffer.write(0x03u8);
-            interrupt_enable.write(0x00u8);
-            line_control.write(0x03u8);
-            fifo_control.write(0xC7u8);
-            modem_control.write(0x0Bu8);
-            modem_control.write(0x1Eu8);
-            buffer.write(0xAEu8);
+            interrupt_enable.write(0x00u8); // Disable all interrupts
+            line_control.write(LineControlFlags::DLAB.bits()); // Enable DLAB (set baud rate divisor)
+            buffer.write(0x03u8); // Set divisor to 3 (lo byte) 38400 baud
+            interrupt_enable.write(0x00u8); //                  (hi byte)
+            line_control.write(LineControlFlags::DATA_BITS_8.bits()); // 8 bits, no parity, one stop bit
+            fifo_control.write(0xC7u8); // Enable FIFO, clear them, with 14-byte threshold
+            modem_control.write(0x0Bu8); // IRQs enabled, RTS/DSR set
+            modem_control.write(0x1Eu8); // Set in loopback mode, test the serial chip
+            buffer.write(0xAEu8); // Test serial chip (send byte 0xAE and check if serial returns same byte)
         
             if buffer.read() != 0xAEu8 {
                 panic!("Serial port initialization failed");
             }
 
-            modem_control.write(0x0Fu8);
+            modem_control.write(0x0Fu8); // Normal operation
         }
     }
 
