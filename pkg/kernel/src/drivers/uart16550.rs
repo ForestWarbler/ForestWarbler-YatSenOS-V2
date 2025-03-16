@@ -2,6 +2,8 @@ use core::fmt;
 use x86_64::instructions::port::Port;
 use bitflags::bitflags;
 
+use crate::interrupt::enable_irq;
+
 /// A port-mapped UART 16550 serial interface.
 pub struct SerialPort;
 
@@ -47,7 +49,9 @@ impl SerialPort {
             modem_control.write(0x0Bu8); // IRQs enabled, RTS/DSR set
             modem_control.write(0x1Eu8); // Set in loopback mode, test the serial chip
             buffer.write(0xAEu8); // Test serial chip (send byte 0xAE and check if serial returns same byte)
+            interrupt_enable.write(0x01u8); // Enable all interrupts
         
+            // Check if serial is faulty
             if buffer.read() != 0xAEu8 {
                 panic!("Serial port initialization failed");
             }
@@ -74,17 +78,16 @@ impl SerialPort {
 
     /// Receives a byte on the serial port no wait.
     pub fn receive(&mut self) -> Option<u8> {
-        // FIXME: Receive a byte on the serial port no wait
         let base = 0x3F8;
         let mut buffer: Port<u8> = Port::new(base);
         let mut line_status: Port<u8> = Port::new(base + 5);
-        
-        unsafe {
-            while (line_status.read() & 0x01u8) == 0 {
-                // Wait for the receive buffer to be full
-            }
     
-            Some(buffer.read())
+        unsafe {
+            if (line_status.read() & 0x01u8) != 0 {
+                Some(buffer.read())
+            } else {
+                None
+            }
         }
     }
 }
