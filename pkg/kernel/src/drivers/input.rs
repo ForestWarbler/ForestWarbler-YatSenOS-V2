@@ -32,7 +32,7 @@ pub fn get_line() -> String {
     let mut line = String::new();
     loop {
         let key = pop_key();
-        if key == b'\n' {
+        if key == b'\n' || key == b'\r' {
             break;
         } else {
             line.push(key as char);

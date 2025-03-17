@@ -109,11 +109,6 @@ fn cpu_init(&mut self) {
         const DS: u32 = 1 << 12;
         while self.read(0x300) & DS != 0 {} // wait for delivery status
 
-        const INIT_DEASSERT: u32 = (5 << 8) | (1 << 14);  // Level = 1, Trigger = Level-triggered
-        self.write(0x310, 0);
-        self.write(0x300, INIT_DEASSERT | (1 << 19));
-        while self.read(0x300) & (1 << 12) != 0 {}
-
         // FIXME: Enable interrupts on the APIC (but not on the processor).
     }
 
