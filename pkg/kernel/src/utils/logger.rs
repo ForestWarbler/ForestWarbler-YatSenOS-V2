@@ -1,5 +1,5 @@
-use log::{Metadata, Record};
 use core::fmt::Write;
+use log::{Metadata, Record};
 
 pub fn parse_log_level(level: &str) -> log::LevelFilter {
     match level {
@@ -38,8 +38,8 @@ impl log::Log for Logger {
             // Set the color according to the log level
             let (level_color, level_str) = match record.level() {
                 log::Level::Error => ("\x1B[31m", "ERROR"),
-                log::Level::Warn  => ("\x1B[33m", "WARN"),
-                log::Level::Info  => ("\x1B[32m", "INFO"),
+                log::Level::Warn => ("\x1B[33m", "WARN"),
+                log::Level::Info => ("\x1B[32m", "INFO"),
                 log::Level::Debug => ("\x1B[34m", "DEBUG"),
                 log::Level::Trace => ("\x1B[35m", "TRACE"),
             };
@@ -49,7 +49,14 @@ impl log::Log for Logger {
             let file = record.file_static().unwrap_or("unknown file");
 
             // Formatted log output
-            println!("{}[{}]: {} (from {}){}", level_color, level_str, record.args(), file, reset);
+            println!(
+                "{}[{}]: {} (from {}){}",
+                level_color,
+                level_str,
+                record.args(),
+                file,
+                reset
+            );
         }
     }
 

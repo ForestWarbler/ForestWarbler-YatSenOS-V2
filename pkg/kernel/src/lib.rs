@@ -25,14 +25,14 @@ pub use utils::*;
 pub mod drivers;
 pub use drivers::*;
 
-pub mod memory;
 pub mod interrupt;
+pub mod memory;
 
 pub use alloc::format;
 use boot::BootInfo;
 
-use uefi::runtime::ResetType;
 use uefi::Status;
+use uefi::runtime::ResetType;
 
 pub fn init(boot_info: &'static BootInfo) {
     unsafe {

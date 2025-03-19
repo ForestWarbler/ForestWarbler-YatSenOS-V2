@@ -5,8 +5,8 @@
 extern crate log;
 
 use core::arch::asm;
-use ysos_kernel as ysos;
 use ysos::interrupt;
+use ysos_kernel as ysos;
 
 extern crate alloc;
 

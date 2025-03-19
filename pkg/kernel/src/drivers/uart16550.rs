@@ -1,6 +1,6 @@
+use bitflags::bitflags;
 use core::fmt;
 use x86_64::instructions::port::Port;
-use bitflags::bitflags;
 
 use crate::interrupt::enable_irq;
 
@@ -15,7 +15,7 @@ impl SerialPort {
     /// Initializes the serial port.
     pub fn init(&self) {
         // FIXME: Initialize the serial port
-        let mut base= 0x3F8;
+        let mut base = 0x3F8;
         let mut buffer: Port<u8> = Port::new(base);
         let mut interrupt_enable: Port<u8> = Port::new(base + 1);
         let mut fifo_control: Port<u8> = Port::new(base + 2);
@@ -50,7 +50,7 @@ impl SerialPort {
             modem_control.write(0x1Eu8); // Set in loopback mode, test the serial chip
             buffer.write(0xAEu8); // Test serial chip (send byte 0xAE and check if serial returns same byte)
             interrupt_enable.write(0x01u8); // Enable all interrupts
-        
+
             // Check if serial is faulty
             if buffer.read() != 0xAEu8 {
                 panic!("Serial port initialization failed");
@@ -71,7 +71,7 @@ impl SerialPort {
             while (line_status.read() & 0x20u8) == 0 {
                 // Wait for the transmit buffer to be empty
             }
-    
+
             buffer.write(data);
         }
     }
@@ -81,7 +81,7 @@ impl SerialPort {
         let base = 0x3F8;
         let mut buffer: Port<u8> = Port::new(base);
         let mut line_status: Port<u8> = Port::new(base + 5);
-    
+
         unsafe {
             if (line_status.read() & 0x01u8) != 0 {
                 Some(buffer.read())

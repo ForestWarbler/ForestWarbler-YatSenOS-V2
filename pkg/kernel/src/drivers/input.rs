@@ -1,6 +1,6 @@
+use alloc::string::String;
 use crossbeam_queue::ArrayQueue;
 use lazy_static::lazy_static;
-use alloc::string::String;
 
 type Key = u8;
 

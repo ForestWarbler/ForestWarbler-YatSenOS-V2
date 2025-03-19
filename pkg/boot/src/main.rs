@@ -8,15 +8,15 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 use alloc::vec;
-use uefi::{entry, Status};
-use x86_64::registers::control::*;
-use ysos_boot::*;
-use ysos_boot::config::Config;
-use xmas_elf::ElfFile;
-use elf::{map_physical_memory, load_elf, map_range};
 use allocator::UEFIFrameAllocator;
-use fs::{open_file, load_file};
+use elf::{load_elf, map_physical_memory, map_range};
+use fs::{load_file, open_file};
 use uefi::mem::memory_map::MemoryMap;
+use uefi::{Status, entry};
+use x86_64::registers::control::*;
+use xmas_elf::ElfFile;
+use ysos_boot::config::Config;
+use ysos_boot::*;
 
 mod config;
 
@@ -30,7 +30,9 @@ fn efi_main() -> Status {
     info!("Running UEFI bootloader...");
 
     // 1. Load config
-    let boot_config_bytes: &[u8] = include_bytes!("/Users/warblerforest/Projects/YatOS/Lab/ForestWarbler-YatSenOS-V2/pkg/kernel/config/boot.conf");
+    let boot_config_bytes: &[u8] = include_bytes!(
+        "/Users/warblerforest/Projects/YatOS/Lab/ForestWarbler-YatSenOS-V2/pkg/kernel/config/boot.conf"
+    );
     let config = Config::parse(boot_config_bytes);
 
     info!("Config: {:#x?}", config);
@@ -61,7 +63,7 @@ fn efi_main() -> Status {
     unsafe {
         Cr0::update(|mut flags| {
             flags.remove(Cr0Flags::WRITE_PROTECT);
-        }); 
+        });
     }
 
     // FIXME: map physical memory to specific virtual address offset
@@ -104,7 +106,6 @@ fn efi_main() -> Status {
     // 5. Pass system table to kernel
     let ptr = uefi::table::system_table_raw().expect("Failed to get system table");
     let system_table = ptr.cast::<core::ffi::c_void>();
-
 
     // 6. Exit boot and jump to ELF entry
     info!("Exiting boot services...");
