@@ -19,6 +19,12 @@ pub fn kernel_main(boot_info: &'static boot::BootInfo) -> ! {
         info!("> ");
         let input = ysos::drivers::input::get_line();
 
+        // This will cause a page fault
+        // unsafe {
+        //     let ptr = 0x7fffffffffff as *mut u32;
+        //     *ptr = 42;
+        // }
+
         match input.trim() {
             "exit" => break,
             _ => {

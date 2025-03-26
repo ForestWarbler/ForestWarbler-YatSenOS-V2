@@ -1,6 +1,7 @@
 use alloc::string::String;
 use crossbeam_queue::ArrayQueue;
 use lazy_static::lazy_static;
+use alloc::vec::Vec;
 
 type Key = u8;
 
@@ -29,14 +30,14 @@ pub fn pop_key() -> Key {
 }
 
 pub fn get_line() -> String {
-    let mut line = String::new();
+    let mut buf: Vec<u8> = Vec::new();
     loop {
         let key = pop_key();
         if key == b'\n' || key == b'\r' {
             break;
         } else {
-            line.push(key as char);
+            buf.push(key);
         }
     }
-    line
+    String::from_utf8_lossy(&buf).into_owned()
 }

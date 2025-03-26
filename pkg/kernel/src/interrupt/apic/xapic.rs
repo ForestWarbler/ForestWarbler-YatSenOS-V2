@@ -10,20 +10,46 @@ use x86::cpuid::CpuId;
 pub const LAPIC_ADDR: u64 = 0xFEE00000;
 
 bitflags! {
-    /// SVR flags
     struct SpuriousFlags: u32 {
-        /// APIC Ena/Disa
         const APIC_ENABLE = 1 << 8;
     }
 }
 
 bitflags! {
-    /// LVT flags
-    struct LvtFlags: u32 {
-        const MASKED = 1 << 16;
+    struct LvtTimerFlags: u32 {
+        const MASKED   = 1 << 16;
         const PERIODIC = 1 << 17;
     }
 }
+
+bitflags! {
+    struct LvtLintFlags: u32 {
+        const MASKED = 1 << 16;
+    }
+}
+
+bitflags! {
+    struct LvtPcintFlags: u32 {
+        const MASKED = 1 << 16;
+    }
+}
+
+bitflags! {
+    struct LvtErrorFlags: u32 {
+        const MASKED = 1 << 16;
+    }
+}
+
+bitflags! {
+    struct IcrFlags: u32 {
+        const BCAST = 1 << 19;
+        const INIT  = 5 << 8;
+        const TMLV  = 1 << 15; // TM=1, LV=0
+        const DS    = 1 << 12; // 传输状态
+    }
+}
+
+const VECTOR_MASK: u32 = 0xFF;
 pub struct XApic {
     addr: u64,
 }
@@ -59,39 +85,40 @@ impl LocalApic for XApic {
     fn cpu_init(&mut self) {
         unsafe {
             // FIXME: Enable local APIC; set spurious interrupt vector.
+            let spurious_vector = Interrupts::IrqBase as u32 + Irq::Spurious as u32;
             let mut spiv = self.read(0xF0);
+            spiv &= !VECTOR_MASK;
+            spiv |= spurious_vector;
             spiv |= SpuriousFlags::APIC_ENABLE.bits();
-            spiv &= !(0xFF);
-            spiv |= Interrupts::IrqBase as u32 + Irq::Spurious as u32;
             self.write(0xF0, spiv);
 
-            let mut lvt_timer = self.read(0x320);
-
-            let mut lvt_timer = self.read(0x320);
-            // clear and set Vector
-            lvt_timer &= !(0xFF);
-            lvt_timer |= Interrupts::IrqBase as u32 + Irq::Timer as u32;
-            lvt_timer &= !(1 << 16); // clear Mask
-            lvt_timer |= 1 << 17; // set Timer Periodic Mode
-            self.write(0x320, lvt_timer);
-
-            // FIXME: The timer repeatedly counts down at bus frequency
-            self.write(0x3E0, 0b1011); // set Timer Divide to 1
-            self.write(0x380, 0x20000); // set initial count to 0x20000s        
+            // FIXME: The timer repeatedly counts down at bus frequency.
+            let timer_vector = Interrupts::IrqBase as u32 + Irq::Timer as u32;
+            let raw_timer = self.read(0x320);
+            let base_timer = raw_timer & !VECTOR_MASK;
+            let new_timer = base_timer | timer_vector;
+            let mut timer_flags = LvtTimerFlags::from_bits_truncate(new_timer);
+            timer_flags.remove(LvtTimerFlags::MASKED);
+            timer_flags.insert(LvtTimerFlags::PERIODIC);
+            self.write(0x320, (new_timer & VECTOR_MASK) | timer_flags.bits());
+            self.write(0x3E0, 0b1011);   // set Timer Divide to 1
+            self.write(0x380, 0x20000);   // set initial count to 0x20000
 
             // FIXME: Disable logical interrupt lines (LINT0, LINT1)
-            self.write(0x350, 1 << 16);
-            self.write(0x360, 1 << 16);
+            self.write(0x350, LvtLintFlags::MASKED.bits());
+            self.write(0x360, LvtLintFlags::MASKED.bits());
 
             // FIXME: Disable performance counter overflow interrupts (PCINT)
-            self.write(0x340, 1 << 16);
+            self.write(0x340, LvtPcintFlags::MASKED.bits());
 
             // FIXME: Map error interrupt to IRQ_ERROR.
-            let mut lvt_error = self.read(0x370);
-            lvt_error &= !(0xFF);
-            lvt_error |= Interrupts::IrqBase as u32 + Irq::Error as u32;
-            lvt_error &= !(1 << 16); // clear Mask
-            self.write(0x370, lvt_error);
+            let error_vector = Interrupts::IrqBase as u32 + Irq::Error as u32;
+            let raw_error = self.read(0x370);
+            let base_error = raw_error & !VECTOR_MASK;
+            let new_error = base_error | error_vector;
+            let mut error_flags = LvtErrorFlags::from_bits_truncate(new_error);
+            error_flags.remove(LvtErrorFlags::MASKED);
+            self.write(0x370, (new_error & VECTOR_MASK) | error_flags.bits());
 
             // FIXME: Clear error status register (requires back-to-back writes).
             self.write(0x280, 0);
@@ -101,15 +128,13 @@ impl LocalApic for XApic {
             self.write(0xB0, 0);
 
             // FIXME: Send an Init Level De-Assert to synchronise arbitration ID's.
-            self.write(0x310, 0); // set ICR 0x310
-            const BCAST: u32 = 1 << 19;
-            const INIT: u32 = 5 << 8;
-            const TMLV: u32 = 1 << 15; // TM = 1, LV = 0
-            self.write(0x300, BCAST | INIT | TMLV); // set ICR 0x300
-            const DS: u32 = 1 << 12;
-            while self.read(0x300) & DS != 0 {} // wait for delivery status
+            self.write(0x310, 0);
+            let icr_value = IcrFlags::BCAST.bits() | IcrFlags::INIT.bits() | IcrFlags::TMLV.bits();
+            self.write(0x300, icr_value);
+            while self.read(0x300) & IcrFlags::DS.bits() != 0 {}
 
             // FIXME: Enable interrupts on the APIC (but not on the processor).
+            self.write(0x080, 0);
         }
 
         // NOTE: Try to use bitflags! macro to set the flags.

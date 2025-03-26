@@ -21,11 +21,11 @@ static COUNTER: AtomicU64 = AtomicU64::new(0);
 #[inline]
 pub fn read_counter() -> u64 {
     // FIXME: load counter value
-    COUNTER.load(Ordering::Relaxed)
+    COUNTER.load(Ordering::SeqCst)
 }
 
 #[inline]
 pub fn inc_counter() -> u64 {
     // FIXME: read counter value and increase it
-    COUNTER.fetch_add(1, Ordering::Relaxed)
+    COUNTER.fetch_add(1, Ordering::SeqCst)
 }
