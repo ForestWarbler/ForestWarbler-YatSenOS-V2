@@ -34,5 +34,10 @@ pub fn kernel_main(boot_info: &'static boot::BootInfo) -> ! {
         }
     }
 
+    // Use for test clock interrupt
+    // loop {
+
+    // }
+
     ysos::shutdown();
 }
