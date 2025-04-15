@@ -1,8 +1,19 @@
 #[macro_use]
-mod macros;
+pub mod macros;
+#[macro_use]
+pub mod regs;
 
+// pub mod clock;
+use crate::interrupt::clock::*;
+
+pub mod func;
 pub mod logger;
+
 pub use macros::*;
+pub use regs::*;
+
+use crate::proc::*;
+use alloc::format;
 
 pub const fn get_ascii_header() -> &'static str {
     concat!(
@@ -16,6 +27,43 @@ __  __      __  _____            ____  _____
                                        v",
         env!("CARGO_PKG_VERSION")
     )
+}
+
+pub fn new_test_thread(id: &str) -> ProcessId {
+    let mut proc_data = ProcessData::new();
+    proc_data.set_env("id", id);
+
+    spawn_kernel_thread(
+        func::test,
+        format!("#{}_test", id),
+        Some(proc_data),
+    )
+}
+
+pub fn new_stack_test_thread() {
+    let pid = spawn_kernel_thread(
+        func::stack_test,
+        alloc::string::String::from("stack"),
+        None,
+    );
+
+    // wait for progress exit
+    wait(pid);
+}
+
+fn wait(pid: ProcessId) {
+    loop {
+        // FIXME: try to get the status of the process
+
+        // HINT: it's better to use the exit code
+
+        if crate::proc::manager::get_process_manager()
+            .get_proc_public(&pid).is_none() {
+            x86_64::instructions::hlt();
+        } else {
+            break;
+        }
+    }
 }
 
 const SHORT_UNITS: [&str; 4] = ["B", "K", "M", "G"];

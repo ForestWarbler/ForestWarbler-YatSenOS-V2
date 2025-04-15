@@ -18,3 +18,5 @@ bitflags = { workspace = true }
 bit_field = { workspace = true }
 libm = { workspace = true }
 linked_list_allocator = { workspace = true }
+volatile = { workspace = true }
+elf = { workspace = true }

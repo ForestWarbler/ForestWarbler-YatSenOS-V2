@@ -1,11 +1,7 @@
 #![no_std]
 #![no_main]
 
-#[macro_use]
-extern crate log;
-
-use core::arch::asm;
-use ysos::interrupt;
+use ysos::*;
 use ysos_kernel as ysos;
 
 extern crate alloc;
@@ -15,29 +11,33 @@ boot::entry_point!(kernel_main);
 pub fn kernel_main(boot_info: &'static boot::BootInfo) -> ! {
     ysos::init(boot_info);
 
+    // FIXME: update lib.rs to pass following tests
+
+    // 1. run some (about 5) "test", show these threads are running concurrently
+
+    // 2. run "stack", create a huge stack, handle page fault properly
+
+    let mut test_num = 0;
+
     loop {
-        info!("> ");
-        let input = ysos::drivers::input::get_line();
-
-        // This will cause a page fault
-        // unsafe {
-        //     let ptr = 0x7fffffffffff as *mut u32;
-        //     *ptr = 42;
-        // }
-
-        match input.trim() {
+        print!("[>] ");
+        let line = input::get_line();
+        println!("[=] {}", line);
+        match line.trim() {
             "exit" => break,
-            _ => {
-                info!("You said: {}", input);
-                debug!("The counter value is {}", interrupt::clock::read_counter());
+            "ps" => {
+                ysos::proc::print_process_list();
             }
+            "stack" => {
+                ysos::new_stack_test_thread();
+            }
+            "test" => {
+                ysos::new_test_thread(format!("{}", test_num).as_str());
+                test_num += 1;
+            }
+            _ => println!("[=] {}", line),
         }
     }
-
-    // Use for test clock interrupt
-    // loop {
-
-    // }
 
     ysos::shutdown();
 }

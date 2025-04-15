@@ -2,6 +2,8 @@ use crate::memory::*;
 use x86_64::VirtAddr;
 use x86_64::registers::control::Cr2;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
+use x86_64::registers::segmentation::SegmentSelector;
+use alloc::format;
 
 pub unsafe fn register_idt(idt: &mut InterruptDescriptorTable) {
     idt.divide_error.set_handler_fn(divide_error_handler);
@@ -48,12 +50,25 @@ pub extern "x86-interrupt" fn page_fault_handler(
     stack_frame: InterruptStackFrame,
     err_code: PageFaultErrorCode,
 ) {
-    panic!(
-        "EXCEPTION: PAGE FAULT, ERROR_CODE: {:?}\n\nTrying to access: {:#x}\n{:#?}",
-        err_code,
-        Cr2::read().unwrap_or(VirtAddr::new_truncate(0xdeadbeef)),
-        stack_frame
-    );
+    let accessed_addr = match Cr2::read() {
+        Ok(addr) => format!("{:#x}", addr.as_u64()),
+        Err(e) => format!("Invalid Address: {:?}", e),
+    };
+
+    if !crate::proc::handle_page_fault(Cr2::read().expect("REASON"), err_code) {
+        let proc_manager = crate::proc::manager::get_process_manager();
+        let curr_proc = proc_manager.current();  // <-- directly Arc<Process>
+
+        let pid = curr_proc.pid();
+        let proc_guard = curr_proc.read();
+        let name = proc_guard.name();
+        warn!(
+            "EXCEPTION: PAGE FAULT, ERROR_CODE: {:?}\n\nTrying to access: {}\nProcess {} ({}) caused the page fault.\n{:#?}",
+            err_code, accessed_addr, pid.0, name, stack_frame
+        );
+
+        // panic!("Cannot handle page fault!");
+    }
 }
 
 pub extern "x86-interrupt" fn alignment_check_handler(stack_frame: InterruptStackFrame, error_code: u64) {

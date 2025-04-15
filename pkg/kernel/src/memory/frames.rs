@@ -2,6 +2,8 @@ use alloc::boxed::Box;
 use boot::{MemoryMap, MemoryType};
 use x86_64::PhysAddr;
 use x86_64::structures::paging::{FrameAllocator, FrameDeallocator, PhysFrame, Size4KiB};
+use crate::humanized_size;
+use crate::memory::PAGE_SIZE;
 
 once_mutex!(pub FRAME_ALLOCATOR: BootInfoFrameAllocator);
 
