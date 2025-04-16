@@ -6,12 +6,13 @@ pub fn test() -> ! {
     } else {
         id = "unknown".into()
     }
+    
     loop {
         // TODO: better way to show more than one process is running?
         count += 1;
-        if count == 1000 {
+        if count == 500 {
+            println!("\r{:-6} => Tick!", id);
             count = 0;
-            print!("\r{:-6} => Tick!", id);
         }
         unsafe {
             x86_64::instructions::hlt();

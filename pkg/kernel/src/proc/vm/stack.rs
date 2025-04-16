@@ -103,27 +103,30 @@ impl Stack {
         mapper: MapperRef,
         alloc: FrameAllocatorRef,
     ) -> Result<(), MapToError<Size4KiB>> {
-        
-        // FIXME: grow stack for page fault
-        if self.is_on_stack(addr) {
-            let addr = addr.as_u64();
-            let cur_stack_bot = self.range.start.start_address().as_u64();
-            trace!("Current stack bot: {:#x}", cur_stack_bot);
-            trace!("Address to access: {:#x}", addr);
-
-            if addr < cur_stack_bot {
-                let new_page = Page::containing_address(VirtAddr::new(addr));
-                let new_range = Page::range(new_page, new_page + 1);
-                self.range.start = new_range.start;
-                self.usage += 1;
-
-                elf::map_range(addr, 1, mapper, alloc)?;
-            }
-        } else {
-            debug_assert!(self.is_on_stack(addr), "Address is not on stack.");
-            return Err(MapToError::FrameAllocationFailed);
+        let fault_addr = addr.as_u64();
+        let cur_stack_bot = self.range.start.start_address().as_u64();
+        let cur_stack_top = self.range.end.start_address().as_u64();
+    
+        warn!(
+            "grow_stack: current stack range = [{:#x}..{:#x}), fault_addr = {:#x}",
+            cur_stack_bot, cur_stack_top, fault_addr
+        );
+    
+        if fault_addr < cur_stack_bot {
+            let page_size = crate::memory::PAGE_SIZE;
+            let delta = cur_stack_bot - fault_addr;
+            let needed_pages = (delta + page_size - 1) / page_size;
+    
+            let new_stack_bot = cur_stack_bot
+                .checked_sub(needed_pages * page_size)
+                .ok_or(MapToError::FrameAllocationFailed)?; 
+    
+            elf::map_range(new_stack_bot, needed_pages, mapper, alloc)?;
+    
+            self.range.start = Page::containing_address(VirtAddr::new(new_stack_bot));
+            self.usage += needed_pages;
         }
-
+    
         Ok(())
     }
 

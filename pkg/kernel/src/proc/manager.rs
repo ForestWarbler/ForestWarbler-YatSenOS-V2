@@ -9,6 +9,7 @@ use spin::{Mutex, RwLock};
 use alloc::sync::Arc;
 use uefi::proto::debug;
 use crate::proc::vm::ProcessVm;
+use crate::humanized_size;
 
 pub static PROCESS_MANAGER: spin::Once<ProcessManager> = spin::Once::new();
 
@@ -188,6 +189,20 @@ impl ProcessManager {
             .for_each(|p| output += format!("{}\n", p).as_str());
 
         // TODO: print memory usage of kernel heap
+        let alloc = get_frame_alloc_for_sure();
+        let frames_used = alloc.frames_used();
+        let frames_total = alloc.frames_total();
+
+        let used = frames_used as u64 * PAGE_SIZE as u64;
+        let total = frames_total as u64 * PAGE_SIZE as u64;
+        let (used_humanized, used_unit) = humanized_size(used);
+        let (total_humanized, total_unit) = humanized_size(total);
+
+        // info!("Physical Memory    : {:>7.*} {}", 3, size, unit);
+
+        output += format!("Kernel Heap: {:>7.*} {} / {:>7.*} {} ({:.2}%)\n",
+            3, used_humanized, used_unit, 3, total_humanized, total_unit, 
+            (used as f64 / total as f64) * 100.0).as_str();
 
         output += format!("Queue  : {:?}\n", self.ready_queue.lock()).as_str();
 

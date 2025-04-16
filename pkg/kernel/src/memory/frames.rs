@@ -53,6 +53,7 @@ unsafe impl FrameAllocator<Size4KiB> for BootInfoFrameAllocator {
 impl FrameDeallocator<Size4KiB> for BootInfoFrameAllocator {
     unsafe fn deallocate_frame(&mut self, _frame: PhysFrame) {
         // TODO: deallocate frame (not for lab 2)
+        // self.used -= 1;
     }
 }
 

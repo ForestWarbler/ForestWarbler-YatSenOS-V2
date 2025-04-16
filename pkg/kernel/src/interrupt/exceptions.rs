@@ -62,7 +62,7 @@ pub extern "x86-interrupt" fn page_fault_handler(
         let pid = curr_proc.pid();
         let proc_guard = curr_proc.read();
         let name = proc_guard.name();
-        warn!(
+        panic!(
             "EXCEPTION: PAGE FAULT, ERROR_CODE: {:?}\n\nTrying to access: {}\nProcess {} ({}) caused the page fault.\n{:#?}",
             err_code, accessed_addr, pid.0, name, stack_frame
         );

@@ -42,18 +42,23 @@ impl ProcessVm {
         // debug!("STACK_MAX_SIZE: {:#x}", STACK_MAX_SIZE);
         // FIXME: calculate the stack for pid
         debug!("PID: {:#x}", pid.0);
-        let stack_bot_addr = STACK_INIT_BOT - (pid.0 as u64 - 1) * STACK_MAX_SIZE;
-        let stack_top_addr = STACK_INIT_TOP - (pid.0 as u64 - 1) * STACK_MAX_SIZE;
+        let stack_bot_addr = STACK_INIT_BOT - (pid.0 as u64) * STACK_MAX_SIZE;
+        let stack_top_addr = STACK_INIT_TOP - (pid.0 as u64) * STACK_MAX_SIZE;
         let frame_allocator = &mut *get_frame_alloc_for_sure();
 
         // let bot_addr = VirtAddr::new(stack_bot_addr);
         // let top_addr = VirtAddr::new(stack_top_addr);
 
         map_range(
-            stack_bot_addr,
-            stack_top_addr - stack_bot_addr,
+            stack_top_addr,
+            STACK_DEF_PAGE,
             &mut self.page_table.mapper(),
             frame_allocator,
+        );
+
+        self.stack = Stack::new(
+            Page::containing_address(VirtAddr::new(stack_top_addr)),
+            STACK_DEF_PAGE,
         );
 
         VirtAddr::new(stack_top_addr)
