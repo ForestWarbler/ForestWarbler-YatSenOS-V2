@@ -1,17 +1,22 @@
 pub fn test() -> ! {
     let mut count = 0;
+    let mut ch = 0;
     let id;
     if let Some(id_env) = crate::proc::env("id") {
         id = id_env
     } else {
         id = "unknown".into()
     }
-    
+
     loop {
         // TODO: better way to show more than one process is running?
         count += 1;
         if count == 500 {
-            println!("\r{:-6} => Tick!", id);
+            if ch == 0 {
+                println!();
+                ch = 1;
+            }
+            println!("{:-6} => Tick!", id);
             count = 0;
         }
         unsafe {

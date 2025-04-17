@@ -1,7 +1,7 @@
 use alloc::format;
 use x86_64::{
-    structures::paging::{page::*, *},
     VirtAddr,
+    structures::paging::{page::*, *},
 };
 
 use crate::{humanized_size, memory::*};
@@ -37,17 +37,14 @@ impl ProcessVm {
         self.stack = Stack::kstack();
         self
     }
-    
+
     pub fn init_proc_stack(&mut self, pid: ProcessId) -> VirtAddr {
         // debug!("STACK_MAX_SIZE: {:#x}", STACK_MAX_SIZE);
         // FIXME: calculate the stack for pid
         debug!("PID: {:#x}", pid.0);
-        let stack_bot_addr = STACK_INIT_BOT - (pid.0 as u64) * STACK_MAX_SIZE;
-        let stack_top_addr = STACK_INIT_TOP - (pid.0 as u64) * STACK_MAX_SIZE;
+        let stack_bot_addr = STACK_INIT_BOT - (pid.0 as u64 - 1) * STACK_MAX_SIZE;
+        let stack_top_addr = STACK_INIT_TOP - (pid.0 as u64 - 1) * STACK_MAX_SIZE;
         let frame_allocator = &mut *get_frame_alloc_for_sure();
-
-        // let bot_addr = VirtAddr::new(stack_bot_addr);
-        // let top_addr = VirtAddr::new(stack_top_addr);
 
         map_range(
             stack_top_addr,

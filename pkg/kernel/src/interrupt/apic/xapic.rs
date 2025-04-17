@@ -101,8 +101,8 @@ impl LocalApic for XApic {
             timer_flags.remove(LvtTimerFlags::MASKED);
             timer_flags.insert(LvtTimerFlags::PERIODIC);
             self.write(0x320, (new_timer & VECTOR_MASK) | timer_flags.bits());
-            self.write(0x3E0, 0b1011);   // set Timer Divide to 1
-            self.write(0x380, 0x20000);   // set initial count to 0x20000
+            self.write(0x3E0, 0b1011); // set Timer Divide to 1
+            self.write(0x380, 0x20000); // set initial count to 0x20000
 
             // FIXME: Disable logical interrupt lines (LINT0, LINT1)
             self.write(0x350, LvtLintFlags::MASKED.bits());

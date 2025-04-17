@@ -33,19 +33,11 @@ pub fn new_test_thread(id: &str) -> ProcessId {
     let mut proc_data = ProcessData::new();
     proc_data.set_env("id", id);
 
-    spawn_kernel_thread(
-        func::test,
-        format!("#{}_test", id),
-        Some(proc_data),
-    )
+    spawn_kernel_thread(func::test, format!("#{}_test", id), Some(proc_data))
 }
 
 pub fn new_stack_test_thread() {
-    let pid = spawn_kernel_thread(
-        func::stack_test,
-        alloc::string::String::from("stack"),
-        None,
-    );
+    let pid = spawn_kernel_thread(func::stack_test, alloc::string::String::from("stack"), None);
 
     // wait for progress exit
     wait(pid);
@@ -58,7 +50,9 @@ fn wait(pid: ProcessId) {
         // HINT: it's better to use the exit code
 
         if crate::proc::manager::get_process_manager()
-            .get_proc_public(&pid).is_none() {
+            .get_exit_code(&pid)
+            .is_none()
+        {
             x86_64::instructions::hlt();
         } else {
             break;

@@ -1,13 +1,13 @@
 use super::*;
 use crate::memory::*;
-use alloc::sync::Weak;
+use crate::proc::vm::ProcessVm;
 use alloc::sync::Arc;
+use alloc::sync::Weak;
 use alloc::vec::Vec;
 use spin::*;
 use x86_64::structures::paging::mapper::MapToError;
 use x86_64::structures::paging::page::PageRange;
 use x86_64::structures::paging::*;
-use crate::proc::vm::ProcessVm;
 
 #[derive(Clone)]
 pub struct Process {
@@ -176,16 +176,8 @@ impl ProcessInner {
         self.proc_data.take();
     }
 
-    pub fn init_stack_frame(
-        &mut self,
-        entry: VirtAddr,
-        stack_top: VirtAddr,
-    ) {
+    pub fn init_stack_frame(&mut self, entry: VirtAddr, stack_top: VirtAddr) {
         self.context.init_stack_frame(entry, stack_top);
-    }
-
-    pub fn get_proc_data(&self) -> &ProcessData {
-        self.proc_data.as_ref().unwrap()
     }
 }
 
@@ -214,7 +206,6 @@ impl core::ops::DerefMut for ProcessInner {
             .expect("Process data empty. The process may be killed.")
     }
 }
-
 
 impl core::fmt::Debug for Process {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {

@@ -1,22 +1,21 @@
-use super::*;
+use super::{processor::get_pid, *};
+use crate::humanized_size;
 use crate::memory::{
-    self,
+    self, PAGE_SIZE,
     allocator::{ALLOCATOR, HEAP_SIZE},
-    get_frame_alloc_for_sure, PAGE_SIZE,
+    get_frame_alloc_for_sure,
 };
+use crate::proc::vm::ProcessVm;
+use alloc::sync::Arc;
 use alloc::{collections::*, format};
 use spin::{Mutex, RwLock};
-use alloc::sync::Arc;
 use uefi::proto::debug;
-use crate::proc::vm::ProcessVm;
-use crate::humanized_size;
 
 pub static PROCESS_MANAGER: spin::Once<ProcessManager> = spin::Once::new();
 
 pub fn init(init: Arc<Process>) {
-
     // FIXME: set init process as Running
-    init.write().resume(); 
+    init.write().resume();
 
     // FIXME: set processor's current pid to init's pid
     processor::set_pid(init.pid());
@@ -81,9 +80,6 @@ impl ProcessManager {
     }
 
     pub fn switch_next(&self, context: &mut ProcessContext) -> ProcessId {
-
-        self.save_current(context);
-
         // FIXME: fetch the next process from ready queue
         let mut ready_queue = self.ready_queue.lock();
         if ready_queue.is_empty() {
@@ -97,8 +93,7 @@ impl ProcessManager {
         // FIXME: check if the next process is ready,
         //        continue to fetch if not ready
         if next_proc.read().status() != ProgramStatus::Ready {
-            // warn!("Process {:#?} is not ready.", next_proc);
-            return ProcessId::new();
+            return get_pid();
         }
 
         // FIXME: restore next process's context
@@ -124,13 +119,10 @@ impl ProcessManager {
         let proc = Process::new(name, Some(Arc::downgrade(&kproc)), page_table, proc_data);
 
         // alloc stack for the new process base on pid
-        let stack_top = proc.alloc_init_stack();
+        let stack_top: VirtAddr = proc.alloc_init_stack();
 
         // FIXME: set the stack frame
-        proc.write().init_stack_frame(
-            entry,
-            stack_top,
-        );
+        proc.write().init_stack_frame(entry, stack_top);
 
         // FIXME: add to process map
         let pid = proc.pid();
@@ -151,12 +143,54 @@ impl ProcessManager {
     pub fn handle_page_fault(&self, addr: VirtAddr, err_code: PageFaultErrorCode) -> bool {
         // FIXME: handle page fault
         if err_code.contains(PageFaultErrorCode::PROTECTION_VIOLATION) {
-            warn!("Page fault: protection violation at {:#?}", addr);
+            warn!("Page fault: protection violation at {:#x}", addr.as_u64());
             return false;
-        } else {
-            return self.current().write().handle_page_fault(addr);
         }
-        false
+
+        if err_code.contains(PageFaultErrorCode::MALFORMED_TABLE) {
+            error!(
+                "Page fault: malformed page-table entry at {:#x}",
+                addr.as_u64()
+            );
+            return false;
+        }
+
+        if err_code.contains(PageFaultErrorCode::INSTRUCTION_FETCH) {
+            error!("Page fault: instruction fetch at {:#x}", addr.as_u64());
+            return false;
+        }
+
+        if err_code.contains(PageFaultErrorCode::PROTECTION_KEY) {
+            error!(
+                "Page fault: protection key violation at {:#x}",
+                addr.as_u64()
+            );
+            return false;
+        }
+
+        if err_code.contains(PageFaultErrorCode::SHADOW_STACK) {
+            error!("Page fault: shadow stack violation at {:#x}", addr.as_u64());
+            return false;
+        }
+
+        if err_code.contains(PageFaultErrorCode::SGX) {
+            error!("Page fault: SGX violation at {:#x}", addr.as_u64());
+            return false;
+        }
+
+        if err_code.contains(PageFaultErrorCode::RMP) {
+            error!(
+                "Page fault: RMP protection violation at {:#x}",
+                addr.as_u64()
+            );
+            return false;
+        }
+
+        if !err_code.contains(PageFaultErrorCode::USER_MODE) {
+            info!("Kernel page fault at {:#x}", addr.as_u64());
+        }
+
+        self.current().write().handle_page_fault(addr)
     }
 
     pub fn kill(&self, pid: ProcessId, ret: isize) {
@@ -200,9 +234,17 @@ impl ProcessManager {
 
         // info!("Physical Memory    : {:>7.*} {}", 3, size, unit);
 
-        output += format!("Kernel Heap: {:>7.*} {} / {:>7.*} {} ({:.2}%)\n",
-            3, used_humanized, used_unit, 3, total_humanized, total_unit, 
-            (used as f64 / total as f64) * 100.0).as_str();
+        output += format!(
+            "Kernel Heap: {:>7.*} {} / {:>7.*} {} ({:.2}%)\n",
+            3,
+            used_humanized,
+            used_unit,
+            3,
+            total_humanized,
+            total_unit,
+            (used as f64 / total as f64) * 100.0
+        )
+        .as_str();
 
         output += format!("Queue  : {:?}\n", self.ready_queue.lock()).as_str();
 

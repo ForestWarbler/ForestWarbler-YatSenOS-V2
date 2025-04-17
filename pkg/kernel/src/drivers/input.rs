@@ -1,7 +1,7 @@
 use alloc::string::String;
+use alloc::vec::Vec;
 use crossbeam_queue::ArrayQueue;
 use lazy_static::lazy_static;
-use alloc::vec::Vec;
 
 type Key = u8;
 

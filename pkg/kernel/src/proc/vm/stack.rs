@@ -1,8 +1,7 @@
 use x86_64::{
-    structures::paging::{mapper::MapToError, page::*, Page},
     VirtAddr,
+    structures::paging::{Page, mapper::MapToError, page::*},
 };
-
 
 use super::{FrameAllocatorRef, MapperRef};
 use elf::*;
@@ -106,27 +105,27 @@ impl Stack {
         let fault_addr = addr.as_u64();
         let cur_stack_bot = self.range.start.start_address().as_u64();
         let cur_stack_top = self.range.end.start_address().as_u64();
-    
-        warn!(
+
+        debug!(
             "grow_stack: current stack range = [{:#x}..{:#x}), fault_addr = {:#x}",
             cur_stack_bot, cur_stack_top, fault_addr
         );
-    
+
         if fault_addr < cur_stack_bot {
             let page_size = crate::memory::PAGE_SIZE;
             let delta = cur_stack_bot - fault_addr;
             let needed_pages = (delta + page_size - 1) / page_size;
-    
+
             let new_stack_bot = cur_stack_bot
                 .checked_sub(needed_pages * page_size)
-                .ok_or(MapToError::FrameAllocationFailed)?; 
-    
+                .ok_or(MapToError::FrameAllocationFailed)?;
+
             elf::map_range(new_stack_bot, needed_pages, mapper, alloc)?;
-    
+
             self.range.start = Page::containing_address(VirtAddr::new(new_stack_bot));
             self.usage += needed_pages;
         }
-    
+
         Ok(())
     }
 
