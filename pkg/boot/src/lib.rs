@@ -6,11 +6,12 @@ pub use uefi::data_types::chars::*;
 pub use uefi::data_types::*;
 pub use uefi::proto::console::gop::{GraphicsOutput, ModeInfo};
 
-use arrayvec::ArrayVec;
+use arrayvec::{ArrayString, ArrayVec};
 use core::ptr::NonNull;
 use x86_64::VirtAddr;
 use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::{OffsetPageTable, PageTable};
+use xmas_elf::ElfFile;
 
 pub mod allocator;
 pub mod config;
@@ -21,6 +22,19 @@ pub use fs::*;
 
 #[macro_use]
 extern crate log;
+
+const MAX_APPLIST_SIZE: usize = 16;
+
+/// App information
+pub struct App<'a> {
+    /// The name of app
+    pub name: ArrayString<MAX_APPLIST_SIZE>,
+    /// The ELF file
+    pub elf: ElfFile<'a>,
+}
+
+pub type AppList = ArrayVec<App<'static>, MAX_APPLIST_SIZE>;
+pub type AppListRef = Option<&'static AppList>;
 
 pub type MemoryMap = ArrayVec<MemoryDescriptor, 256>;
 
@@ -37,6 +51,9 @@ pub struct BootInfo {
 
     /// The log level of system
     pub log_level: &'static str,
+
+    /// The list of applications
+    pub loaded_apps: Option<AppList>,
 }
 
 /// Get current page table from CR3

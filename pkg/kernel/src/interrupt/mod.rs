@@ -3,6 +3,7 @@ pub mod clock;
 mod consts;
 pub mod exceptions;
 pub mod serial;
+pub mod syscall;
 
 use crate::interrupt::consts::*;
 use crate::memory::physical_to_virtual;
@@ -16,6 +17,7 @@ lazy_static! {
             exceptions::register_idt(&mut idt);
             clock::register_idt(&mut idt);
             serial::register_idt(&mut idt);
+            syscall::register_idt(&mut idt);
         }
         idt
     };

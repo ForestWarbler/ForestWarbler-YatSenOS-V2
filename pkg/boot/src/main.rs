@@ -82,6 +82,7 @@ fn efi_main() -> Status {
         config.physical_memory_offset,
         &mut page_table,
         &mut frame_allocator,
+        true,
     )
     .expect("Failed to load ELF file");
 
@@ -103,6 +104,14 @@ fn efi_main() -> Status {
 
     free_elf(elf);
 
+    let apps = if config.load_apps {
+        info!("Loading apps...");
+        Some(load_apps())
+    } else {
+        info!("Skip loading apps");
+        None
+    };
+
     // 5. Pass system table to kernel
     let ptr = uefi::table::system_table_raw().expect("Failed to get system table");
     let system_table = ptr.cast::<core::ffi::c_void>();
@@ -119,6 +128,7 @@ fn efi_main() -> Status {
         physical_memory_offset: config.physical_memory_offset,
         system_table,
         log_level: config.log_level,
+        loaded_apps: apps,
     };
 
     // align stack to 8 bytes

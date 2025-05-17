@@ -1,3 +1,6 @@
+use crate::App;
+use crate::AppList;
+use arrayvec::{ArrayString, ArrayVec};
 use core::ptr::NonNull;
 use uefi::boot::*;
 use uefi::proto::media::file::*;
@@ -65,4 +68,66 @@ pub fn free_elf(elf: ElfFile) {
     unsafe {
         uefi::boot::free_pages(mem_start, pages).expect("Failed to free pages");
     }
+}
+
+/// Load apps into memory, when no fs implemented in kernel
+///
+/// List all file under "APP" and load them.
+pub fn load_apps() -> AppList {
+    let mut root = open_root();
+    let mut buf = [0; 8];
+    let cstr_path = uefi::CStr16::from_str_with_buf("\\APP\\", &mut buf).unwrap();
+
+    let mut handle = match root
+        .open(cstr_path, FileMode::Read, FileAttribute::empty())
+        .expect("Failed to open \\APP\\")
+        .into_type()
+        .expect("into_type failed for \\APP\\")
+    {
+        FileType::Dir(d) => d,
+        _ => panic!("\\APP\\ is not a directory"),
+    };
+
+    let mut apps = ArrayVec::new();
+    let mut entry_buf = [0u8; 0x100];
+
+    loop {
+        let info = handle
+            .read_entry(&mut entry_buf)
+            .expect("Failed to read entry");
+
+        match info {
+            Some(entry) => {
+                let file = handle
+                    .open(entry.file_name(), FileMode::Read, FileAttribute::empty())
+                    .expect("Failed to open file");
+
+                let mut reg_file: RegularFile = match handle
+                    .open(entry.file_name(), FileMode::Read, FileAttribute::empty())
+                    .expect("Failed to open file")
+                    .into_type()
+                    .expect("into_type failed for entry")
+                {
+                    FileType::Regular(r) => r,
+                    _ => continue, // 子目录，直接跳过
+                };
+
+                if file.is_directory().unwrap_or(true) {
+                    continue;
+                }
+
+                let elf = ElfFile::new(load_file(&mut reg_file)).expect("Invalid ELF file");
+
+                let mut name = ArrayString::<16>::new();
+                entry.file_name().as_str_in_buf(&mut name).unwrap();
+
+                apps.push(App { name, elf });
+            }
+            None => break,
+        }
+    }
+
+    info!("Loaded {} apps", apps.len());
+
+    apps
 }

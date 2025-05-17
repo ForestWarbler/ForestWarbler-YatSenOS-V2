@@ -1,6 +1,7 @@
 use super::*;
 use crate::memory::*;
 use crate::proc::vm::ProcessVm;
+use crate::proc::vm::stack::*;
 use alloc::sync::Arc;
 use alloc::sync::Weak;
 use alloc::vec::Vec;
@@ -178,6 +179,10 @@ impl ProcessInner {
 
     pub fn init_stack_frame(&mut self, entry: VirtAddr, stack_top: VirtAddr) {
         self.context.init_stack_frame(entry, stack_top);
+    }
+
+    pub fn load_elf(&mut self, elf: &ElfFile) {
+        self.proc_vm.as_mut().unwrap().load_elf(elf);
     }
 }
 

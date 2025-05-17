@@ -7,13 +7,16 @@ use crate::memory::{
 };
 use crate::proc::vm::ProcessVm;
 use alloc::sync::Arc;
+use alloc::sync::Weak;
 use alloc::{collections::*, format};
+use boot::{App, AppListRef};
 use spin::{Mutex, RwLock};
 use uefi::proto::debug;
+use xmas_elf::ElfFile;
 
 pub static PROCESS_MANAGER: spin::Once<ProcessManager> = spin::Once::new();
 
-pub fn init(init: Arc<Process>) {
+pub fn init(init: Arc<Process>, app_list: AppListRef) {
     // FIXME: set init process as Running
     init.write().resume();
 
@@ -22,7 +25,7 @@ pub fn init(init: Arc<Process>) {
     let cur_pid = processor::get_pid();
     trace!("Current process: {:#?}", cur_pid);
 
-    PROCESS_MANAGER.call_once(|| ProcessManager::new(init));
+    PROCESS_MANAGER.call_once(|| ProcessManager::new(init, app_list));
 }
 
 pub fn get_process_manager() -> &'static ProcessManager {
@@ -34,13 +37,15 @@ pub fn get_process_manager() -> &'static ProcessManager {
 pub struct ProcessManager {
     processes: RwLock<BTreeMap<ProcessId, Arc<Process>>>,
     ready_queue: Mutex<VecDeque<ProcessId>>,
+    app_list: AppListRef,
 }
 
 impl ProcessManager {
-    pub fn new(init: Arc<Process>) -> Self {
+    pub fn new(init: Arc<Process>, app_list: AppListRef) -> Self {
         let mut processes = BTreeMap::new();
         let ready_queue = VecDeque::new();
         let pid = init.pid();
+        let app_list = app_list;
 
         trace!("Init {:#?}", init);
 
@@ -48,6 +53,7 @@ impl ProcessManager {
         Self {
             processes: RwLock::new(processes),
             ready_queue: Mutex::new(ready_queue),
+            app_list,
         }
     }
 
@@ -106,33 +112,68 @@ impl ProcessManager {
         next_pid
     }
 
-    pub fn spawn_kernel_thread(
+    // pub fn spawn_kernel_thread(
+    //     &self,
+    //     entry: VirtAddr,
+    //     name: String,
+    //     proc_data: Option<ProcessData>,
+    // ) -> ProcessId {
+    //     let kproc = self.get_proc(&KERNEL_PID).unwrap();
+    //     let page_table = kproc.read().clone_page_table();
+    //     // debug!("Page table: {:#?}", page_table);
+    //     // let proc_vm = Some(ProcessVm::new(page_table));
+    //     let proc = Process::new(name, Some(Arc::downgrade(&kproc)), page_table, proc_data);
+
+    //     // alloc stack for the new process base on pid
+    //     let stack_top: VirtAddr = proc.alloc_init_stack();
+
+    //     // FIXME: set the stack frame
+    //     proc.write().init_stack_frame(entry, stack_top);
+
+    //     // FIXME: add to process map
+    //     let pid = proc.pid();
+    //     self.add_proc(pid, Arc::clone(&proc));
+
+    //     // FIXME: push to ready queue
+    //     proc.write().pause();
+    //     self.push_ready(pid);
+
+    //     // FIXME: return new process pid
+    //     pid
+    // }
+
+    pub fn spawn(
         &self,
-        entry: VirtAddr,
+        elf: &ElfFile,
         name: String,
+        parent: Option<Weak<Process>>,
         proc_data: Option<ProcessData>,
     ) -> ProcessId {
         let kproc = self.get_proc(&KERNEL_PID).unwrap();
         let page_table = kproc.read().clone_page_table();
-        // debug!("Page table: {:#?}", page_table);
         // let proc_vm = Some(ProcessVm::new(page_table));
-        let proc = Process::new(name, Some(Arc::downgrade(&kproc)), page_table, proc_data);
+        let proc = Process::new(name, parent, page_table, proc_data);
 
-        // alloc stack for the new process base on pid
+        let mut inner = proc.write();
+        // FIXME: load elf to process pagetable
+        inner.load_elf(elf);
+        // FIXME: alloc new stack for process
         let stack_top: VirtAddr = proc.alloc_init_stack();
+        inner.init_stack_frame(
+            VirtAddr::new(elf.header.pt2.entry_point() as u64),
+            stack_top,
+        );
+        // FIXME: mark process as ready
+        inner.pause();
+        drop(inner);
 
-        // FIXME: set the stack frame
-        proc.write().init_stack_frame(entry, stack_top);
+        trace!("New {:#?}", &proc);
 
-        // FIXME: add to process map
         let pid = proc.pid();
+        // FIXME: something like kernel thread
         self.add_proc(pid, Arc::clone(&proc));
-
-        // FIXME: push to ready queue
-        proc.write().pause();
         self.push_ready(pid);
 
-        // FIXME: return new process pid
         pid
     }
 
@@ -259,5 +300,9 @@ impl ProcessManager {
 
     pub fn get_proc_public(&self, pid: &ProcessId) -> Option<Arc<Process>> {
         self.get_proc(pid)
+    }
+
+    pub fn app_list(&self) -> AppListRef {
+        self.app_list
     }
 }
