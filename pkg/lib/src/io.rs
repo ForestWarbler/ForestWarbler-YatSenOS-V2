@@ -13,12 +13,47 @@ impl Stdin {
 
     pub fn read_line(&self) -> String {
         // FIXME: allocate string
+        let mut s = String::new();
         // FIXME: read from input buffer
+        let mut buf = vec![0; 4];
+        //s = sys_read(1, buf);
         //       - maybe char by char?
+        loop {
+            match sys_read(0, &mut buf) {
+                Some(n) => {
+                    if n > 0 {
+                        let ch = String::from_utf8_lossy(&buf).to_string().remove(0);
+                        match ch {
+                            '\n' | '\r' => {
+                                self::print!("\n");
+                                break;
+                            }
+                            '\x03' => {
+                                //ctrl-C
+                                s.clear();
+                                self::print!("^C\n");
+                                break;
+                            }
+                            '\x08' | '\x7f' => {
+                                if !s.is_empty() {
+                                    self::print!("\x08\x20\x08");
+                                    s.pop();
+                                }
+                            }
+                            _ => {
+                                s.push(ch);
+                            }
+                        }
+                    }
+                }
+                None => {
+                    continue;
+                }
+            }
+        }
         // FIXME: handle backspace / enter...
         // FIXME: return string
-
-        String::new()
+        s
     }
 }
 

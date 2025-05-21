@@ -11,6 +11,7 @@ use alloc::sync::Weak;
 use alloc::{collections::*, format};
 use boot::{App, AppListRef};
 use spin::{Mutex, RwLock};
+use syscall_def::*;
 use uefi::proto::debug;
 use xmas_elf::ElfFile;
 
@@ -153,13 +154,14 @@ impl ProcessManager {
         let page_table = kproc.read().clone_page_table();
         // let proc_vm = Some(ProcessVm::new(page_table));
         let proc = Process::new(name, parent, page_table, proc_data);
+        let pid = proc.pid();
 
         let mut inner = proc.write();
         // FIXME: load elf to process pagetable
         inner.load_elf(elf);
         // FIXME: alloc new stack for process
-        let stack_top: VirtAddr = proc.alloc_init_stack();
-        inner.init_stack_frame(
+        let stack_top: VirtAddr = inner.vm_mut().init_user_proc_stack(pid);
+        inner.init_user_stack_frame(
             VirtAddr::new(elf.header.pt2.entry_point() as u64),
             stack_top,
         );
@@ -304,5 +306,13 @@ impl ProcessManager {
 
     pub fn app_list(&self) -> AppListRef {
         self.app_list
+    }
+
+    pub fn write(&self, fd: u8, buf: &[u8]) -> isize {
+        self.current().write().write(fd, buf)
+    }
+
+    pub fn read(&self, fd: u8, buf: &mut [u8]) -> isize {
+        self.current().write().read(fd, buf)
     }
 }

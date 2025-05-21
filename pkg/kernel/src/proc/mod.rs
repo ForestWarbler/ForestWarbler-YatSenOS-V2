@@ -153,5 +153,34 @@ pub fn elf_spawn(name: String, elf: &ElfFile) -> Option<ProcessId> {
         pid
     });
 
+    debug!("Successfully spawn elf");
+
     Some(pid)
+}
+
+pub fn read(fd: u8, buf: &mut [u8]) -> isize {
+    x86_64::instructions::interrupts::without_interrupts(|| get_process_manager().read(fd, buf))
+}
+
+pub fn write(fd: u8, buf: &[u8]) -> isize {
+    x86_64::instructions::interrupts::without_interrupts(|| get_process_manager().write(fd, buf))
+}
+
+pub fn exit(ret: isize, context: &mut ProcessContext) {
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        let manager = get_process_manager();
+        // FIXME: implement this for ProcessManager
+        manager.kill_current(ret);
+        manager.switch_next(context);
+    })
+}
+
+#[inline]
+pub fn still_alive(pid: ProcessId) -> bool {
+    let pid = get_process_manager().get_exit_code(&pid);
+    if let None = pid {
+        true
+    } else {
+        false
+    }
 }

@@ -1,5 +1,6 @@
 use core::alloc::Layout;
 
+use crate::proc::manager::get_process_manager;
 use crate::proc::*;
 use crate::utils::*;
 
@@ -12,8 +13,14 @@ pub fn spawn_process(args: &SyscallArgs) -> usize {
     // FIXME: spawn the process by name
     // FIXME: handle spawn error, return 0 if failed
     // FIXME: return pid as usize
+    let buf = unsafe { core::slice::from_raw_parts(args.arg0 as *const u8, args.arg1 as usize) };
+    let name = unsafe { core::str::from_utf8_unchecked(buf) };
+    let ret = crate::proc::spawn(name);
+    if ret.is_none() {
+        return 0;
+    }
 
-    0
+    ret.unwrap().0 as usize
 }
 
 pub fn sys_write(args: &SyscallArgs) -> usize {
@@ -21,22 +28,28 @@ pub fn sys_write(args: &SyscallArgs) -> usize {
     //       - core::slice::from_raw_parts
     // FIXME: call proc::write -> isize
     // FIXME: return the result as usize
+    let fd = args.arg0 as u8;
+    let buf = unsafe { core::slice::from_raw_parts(args.arg1 as *const u8, args.arg2 as usize) };
 
-    0
+    crate::proc::write(fd, buf) as usize
 }
 
 pub fn sys_read(args: &SyscallArgs) -> usize {
     // FIXME: just like sys_write
+    let fd = args.arg0 as u8;
+    let buf = unsafe { core::slice::from_raw_parts_mut(args.arg1 as *mut u8, args.arg2 as usize) };
 
-    0
+    crate::proc::read(fd, buf) as usize
 }
 
 pub fn exit_process(args: &SyscallArgs, context: &mut ProcessContext) {
     // FIXME: exit process with retcode
+    exit(args.arg0 as isize, context);
 }
 
 pub fn list_process() {
     // FIXME: list all processes
+    print_process_list();
 }
 
 pub fn sys_allocate(args: &SyscallArgs) -> usize {
@@ -70,4 +83,19 @@ pub fn sys_deallocate(args: &SyscallArgs) {
             .lock()
             .deallocate(core::ptr::NonNull::new_unchecked(ptr), *layout);
     }
+}
+
+pub fn sys_get_pid() -> usize {
+    get_process_manager().current().pid().0 as usize
+}
+
+pub fn sys_wait_pid(args: &SyscallArgs) -> usize {
+    let pid = args.arg0 as u16;
+    let ret = get_process_manager().get_exit_code(&ProcessId(pid));
+    match ret {
+        Some(code) => code as usize,
+        None => 0,
+    };
+
+    ret.unwrap() as usize
 }

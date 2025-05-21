@@ -66,7 +66,8 @@ impl Stack {
     pub fn init(&mut self, mapper: MapperRef, alloc: FrameAllocatorRef) {
         debug_assert!(self.usage == 0, "Stack is not empty.");
 
-        self.range = elf::map_range(STACK_INIT_BOT, STACK_DEF_PAGE, mapper, alloc).unwrap();
+        self.range =
+            elf::map_range(STACK_INIT_BOT, STACK_DEF_PAGE, mapper, alloc, true, false).unwrap();
         self.usage = STACK_DEF_PAGE;
     }
 
@@ -120,7 +121,7 @@ impl Stack {
                 .checked_sub(needed_pages * page_size)
                 .ok_or(MapToError::FrameAllocationFailed)?;
 
-            elf::map_range(new_stack_bot, needed_pages, mapper, alloc)?;
+            elf::map_range(new_stack_bot, needed_pages, mapper, alloc, true, false)?;
 
             self.range.start = Page::containing_address(VirtAddr::new(new_stack_bot));
             self.usage += needed_pages;

@@ -92,6 +92,8 @@ fn efi_main() -> Status {
         config.kernel_stack_size,
         &mut page_table,
         &mut frame_allocator,
+        false,
+        false,
     )
     .expect("Failed to map kernel stack");
 

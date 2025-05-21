@@ -19,6 +19,7 @@ extern crate libm;
 
 #[macro_use]
 pub mod utils;
+use uefi::proto::debug;
 pub use utils::*;
 
 #[macro_use]
@@ -56,10 +57,15 @@ pub fn init(boot_info: &'static BootInfo) {
     info!("YatSenOS initialized.");
 }
 
-pub fn wait(pid: proc::ProcessId) {
-    println!("Waiting for process {} to exit...", pid);
+pub fn wait(init: proc::ProcessId) {
     loop {
-        x86_64::instructions::hlt();
+        if proc::still_alive(init) {
+            // Why? Check reflection question 5
+            debug!("Waiting for init process to exit...");
+            x86_64::instructions::hlt();
+        } else {
+            break;
+        }
     }
 }
 

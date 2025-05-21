@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 
+use uefi::proto::debug;
 use ysos::*;
 use ysos_kernel as ysos;
 

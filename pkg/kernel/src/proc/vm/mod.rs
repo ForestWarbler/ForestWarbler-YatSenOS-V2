@@ -52,6 +52,33 @@ impl ProcessVm {
             STACK_DEF_PAGE,
             &mut self.page_table.mapper(),
             frame_allocator,
+            true,
+            false,
+        );
+
+        self.stack = Stack::new(
+            Page::containing_address(VirtAddr::new(stack_top_addr)),
+            STACK_DEF_PAGE,
+        );
+
+        VirtAddr::new(stack_top_addr)
+    }
+
+    pub fn init_user_proc_stack(&mut self, pid: ProcessId) -> VirtAddr {
+        // debug!("STACK_MAX_SIZE: {:#x}", STACK_MAX_SIZE);
+        // FIXME: calculate the stack for pid
+        debug!("PID: {:#x}", pid.0);
+        let stack_bot_addr = STACK_INIT_BOT;
+        let stack_top_addr = STACK_INIT_TOP;
+        let frame_allocator = &mut *get_frame_alloc_for_sure();
+
+        map_range(
+            stack_top_addr,
+            STACK_DEF_PAGE,
+            &mut self.page_table.mapper(),
+            frame_allocator,
+            true,
+            false,
         );
 
         self.stack = Stack::new(
@@ -81,8 +108,6 @@ impl ProcessVm {
 
         // FIXME: load elf to process pagetable
         elf::load_elf(elf, *PHYSICAL_OFFSET.get().unwrap(), mapper, alloc, true);
-
-        elf::map_range(STACK_INIT_BOT, STACK_DEF_PAGE, mapper, alloc);
     }
 }
 

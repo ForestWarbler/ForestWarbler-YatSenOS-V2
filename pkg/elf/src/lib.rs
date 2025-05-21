@@ -43,6 +43,8 @@ pub fn map_range(
     count: u64,
     page_table: &mut impl Mapper<Size4KiB>,
     frame_allocator: &mut impl FrameAllocator<Size4KiB>,
+    user_access: bool,
+    no_execute: bool,
 ) -> Result<PageRange, MapToError<Size4KiB>> {
     let range_start = Page::containing_address(VirtAddr::new(addr));
     let range_end = range_start + count;
@@ -55,6 +57,16 @@ pub fn map_range(
 
     // default flags for stack
     let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
+    let flags = if user_access {
+        flags | PageTableFlags::USER_ACCESSIBLE
+    } else {
+        flags
+    };
+    let flags = if no_execute {
+        flags | PageTableFlags::NO_EXECUTE
+    } else {
+        flags
+    };
 
     for page in Page::range(range_start, range_end) {
         let frame = frame_allocator

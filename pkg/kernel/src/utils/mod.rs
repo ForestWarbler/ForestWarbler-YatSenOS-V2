@@ -8,6 +8,7 @@ pub mod regs;
 
 pub mod func;
 pub mod logger;
+pub mod resource;
 
 pub use macros::*;
 pub use regs::*;

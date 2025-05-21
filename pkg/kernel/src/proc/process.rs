@@ -94,6 +94,10 @@ impl Process {
     pub fn alloc_init_stack(&self) -> VirtAddr {
         self.write().vm_mut().init_proc_stack(self.pid)
     }
+
+    pub fn alloc_init_user_stack(&self) -> VirtAddr {
+        self.write().vm_mut().init_user_proc_stack(self.pid)
+    }
 }
 
 impl ProcessInner {
@@ -179,6 +183,10 @@ impl ProcessInner {
 
     pub fn init_stack_frame(&mut self, entry: VirtAddr, stack_top: VirtAddr) {
         self.context.init_stack_frame(entry, stack_top);
+    }
+
+    pub fn init_user_stack_frame(&mut self, entry: VirtAddr, stack_top: VirtAddr) {
+        self.context.init_user_stack_frame(entry, stack_top);
     }
 
     pub fn load_elf(&mut self, elf: &ElfFile) {
