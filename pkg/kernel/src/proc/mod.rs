@@ -153,8 +153,6 @@ pub fn elf_spawn(name: String, elf: &ElfFile) -> Option<ProcessId> {
         pid
     });
 
-    debug!("Successfully spawn elf");
-
     Some(pid)
 }
 
@@ -177,10 +175,8 @@ pub fn exit(ret: isize, context: &mut ProcessContext) {
 
 #[inline]
 pub fn still_alive(pid: ProcessId) -> bool {
-    let pid = get_process_manager().get_exit_code(&pid);
-    if let None = pid {
-        true
-    } else {
-        false
-    }
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        let pid = get_process_manager().get_exit_code(&pid);
+        if let None = pid { true } else { false }
+    })
 }

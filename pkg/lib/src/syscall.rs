@@ -36,11 +36,11 @@ pub fn sys_wait_pid(pid: u16) -> isize {
     //        loop until the process is finished
     loop {
         let status = syscall!(Syscall::WaitPid, pid as u64) as isize;
-        if status != 100000 {
+        if status != 20050615 {
             break;
         }
     }
-    0
+    pid as isize
 }
 
 #[inline(always)]
@@ -64,8 +64,8 @@ pub fn sys_deallocate(ptr: *mut u8, layout: &core::alloc::Layout) -> usize {
 }
 
 #[inline(always)]
-pub fn sys_spawn(path: &str) -> u16 {
-    syscall!(Syscall::Spawn, path.as_ptr() as u64, path.len() as u64) as u16
+pub fn sys_spawn(name: &str) -> u16 {
+    syscall!(Syscall::Spawn, name.as_ptr() as u64, name.len() as u64) as u16
 }
 
 #[inline(always)]

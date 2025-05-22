@@ -25,13 +25,21 @@ impl Stdin {
                         let ch = String::from_utf8_lossy(&buf).to_string().remove(0);
                         match ch {
                             '\n' | '\r' => {
-                                self::print!("\n");
+                                if s.is_empty() {
+                                    self::print!("\n");
+                                }
                                 break;
                             }
                             '\x03' => {
                                 //ctrl-C
                                 s.clear();
                                 self::print!("^C\n");
+                                break;
+                            }
+                            '\x04' => {
+                                //ctrl-D
+                                s.clear();
+                                self::print!("^D\n");
                                 break;
                             }
                             '\x08' | '\x7f' => {

@@ -20,5 +20,5 @@ pub fn spawn_init() -> proc::ProcessId {
     // print_serial!("\x1b[1;1H\x1b[2J");
 
     proc::list_app();
-    proc::spawn("hello").unwrap()
+    proc::spawn("fwsh").unwrap()
 }

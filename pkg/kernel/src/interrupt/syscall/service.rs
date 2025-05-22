@@ -15,12 +15,12 @@ pub fn spawn_process(args: &SyscallArgs) -> usize {
     // FIXME: return pid as usize
     let buf = unsafe { core::slice::from_raw_parts(args.arg0 as *const u8, args.arg1 as usize) };
     let name = unsafe { core::str::from_utf8_unchecked(buf) };
-    let ret = crate::proc::spawn(name);
-    if ret.is_none() {
+    let pid = crate::proc::spawn(name);
+    if pid.is_none() {
         return 0;
     }
 
-    ret.unwrap().0 as usize
+    pid.unwrap().0 as usize
 }
 
 pub fn sys_write(args: &SyscallArgs) -> usize {
@@ -94,7 +94,9 @@ pub fn sys_wait_pid(args: &SyscallArgs) -> usize {
     let ret = get_process_manager().get_exit_code(&ProcessId(pid));
     match ret {
         Some(code) => code as usize,
-        None => 0,
+        None => {
+            return 20050615;
+        }
     };
 
     ret.unwrap() as usize

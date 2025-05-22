@@ -338,6 +338,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ysos_fwsh"
+version = "0.4.0"
+dependencies = [
+ "yslib",
+]
+
+[[package]]
 name = "ysos_hello"
 version = "0.4.0"
 dependencies = [

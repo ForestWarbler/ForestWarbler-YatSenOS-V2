@@ -61,7 +61,7 @@ pub fn wait(init: proc::ProcessId) {
     loop {
         if proc::still_alive(init) {
             // Why? Check reflection question 5
-            debug!("Waiting for init process to exit...");
+            // debug!("Waiting for init process to exit...");
             x86_64::instructions::hlt();
         } else {
             break;
