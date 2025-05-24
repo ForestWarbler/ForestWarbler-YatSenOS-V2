@@ -35,8 +35,8 @@ pub fn sys_wait_pid(pid: u16) -> isize {
     // FIXME: try to get the return value for process
     //        loop until the process is finished
     loop {
-        let status = syscall!(Syscall::WaitPid, pid as u64) as isize;
-        if status != 20050615 {
+        let ret = syscall!(Syscall::WaitPid, pid as u64) as isize;
+        if ret != 20050615 {
             break;
         }
     }

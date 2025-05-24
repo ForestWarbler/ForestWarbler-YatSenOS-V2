@@ -14,6 +14,9 @@ use alloc::vec::Vec;
 ///     help         - list help
 ///     echo <text>  - output <text> as is
 ///     exit / quit  - exit shell
+///     lsapp        - list applications
+///     ps           - list processes
+///     exec <app>   - execute <app>
 /// ───────────────────────────────────────────
 fn main() -> isize {
     println!("► fwsh v0.1 — type \"help\" for help");

@@ -176,7 +176,7 @@ pub fn exit(ret: isize, context: &mut ProcessContext) {
 #[inline]
 pub fn still_alive(pid: ProcessId) -> bool {
     x86_64::instructions::interrupts::without_interrupts(|| {
-        let pid = get_process_manager().get_exit_code(&pid);
-        if let None = pid { true } else { false }
+        let ret = get_process_manager().get_exit_code(&pid);
+        if let None = ret { true } else { false }
     })
 }

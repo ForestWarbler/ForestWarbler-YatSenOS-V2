@@ -109,7 +109,7 @@ pub fn load_apps() -> AppList {
                     .expect("into_type failed for entry")
                 {
                     FileType::Regular(r) => r,
-                    _ => continue, // 子目录，直接跳过
+                    _ => continue,
                 };
 
                 if file.is_directory().unwrap_or(true) {

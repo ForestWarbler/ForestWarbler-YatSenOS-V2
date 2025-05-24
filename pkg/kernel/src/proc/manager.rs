@@ -308,11 +308,11 @@ impl ProcessManager {
         self.app_list
     }
 
-    pub fn write(&self, fd: u8, buf: &[u8]) -> isize {
-        self.current().write().write(fd, buf)
-    }
-
     pub fn read(&self, fd: u8, buf: &mut [u8]) -> isize {
         self.current().write().read(fd, buf)
+    }
+
+    pub fn write(&self, fd: u8, buf: &[u8]) -> isize {
+        self.current().write().write(fd, buf)
     }
 }
