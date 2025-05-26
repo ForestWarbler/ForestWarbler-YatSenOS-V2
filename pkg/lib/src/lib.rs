@@ -21,6 +21,8 @@ pub use alloc::*;
 pub use io::*;
 pub use syscall::*;
 
+use core::time::Duration;
+
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => ($crate::_print(format_args!($($arg)*)));
@@ -51,4 +53,13 @@ pub fn _print(args: Arguments) {
 #[doc(hidden)]
 pub fn _err(args: Arguments) {
     stderr().write(format!("{}", args).as_str());
+}
+
+pub fn sleep(millisecs: u64) {
+    let start = sys_time();
+    let dur = millisecs;
+    let mut current = start;
+    while current - start < dur {
+        current = sys_time();
+    }
 }

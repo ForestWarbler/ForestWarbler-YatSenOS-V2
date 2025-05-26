@@ -1,10 +1,13 @@
 use core::alloc::Layout;
 
+use crate::interrupt::clock::current_time_fixed;
 use crate::proc::manager::get_process_manager;
 use crate::proc::*;
 use crate::utils::*;
 
 use super::SyscallArgs;
+
+use chrono::Timelike;
 
 pub fn spawn_process(args: &SyscallArgs) -> usize {
     // FIXME: get app name by args
@@ -40,6 +43,12 @@ pub fn sys_write(args: &SyscallArgs) -> usize {
     let buf = unsafe { core::slice::from_raw_parts(args.arg1 as *const u8, args.arg2 as usize) };
 
     crate::proc::write(fd, buf) as usize
+}
+
+pub fn sys_time() -> usize {
+    current_time_fixed().map_or(0, |dt| {
+        (dt.timestamp() as u128 * 1000 + dt.time().nanosecond() as u128 / 1_000_000) as usize
+    })
 }
 
 pub fn exit_process(args: &SyscallArgs, context: &mut ProcessContext) {

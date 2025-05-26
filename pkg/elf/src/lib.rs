@@ -241,7 +241,7 @@ pub fn unmap_range(
     frame_deallocator: &mut impl FrameDeallocator<Size4KiB>,
 ) -> Result<(), MapToError<Size4KiB>> {
     let first_page = Page::containing_address(VirtAddr::new(addr));
-    let last_page  = first_page + count;
+    let last_page = first_page + count;
 
     trace!(
         "Unmapping pages: [{:#x} – {:#x}) ({} pages)",

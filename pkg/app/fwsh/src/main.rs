@@ -3,10 +3,13 @@
 
 use lib::*;
 extern crate alloc;
+extern crate chrono;
 extern crate lib;
 
+use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
+use chrono::{Datelike, NaiveDateTime, Timelike};
 
 /// ───────────────────────────────────────────
 ///  fwsh 0.1
@@ -33,12 +36,40 @@ fn main() -> isize {
             "" => continue,
 
             "help" => {
-                println!("Built-ins: help, echo <text>, exit | quit");
+                println!("Built-ins: help, echo <text>, exit | quit, lsapp, ps, exec <app>");
             }
 
             "exit" | "quit" => {
                 println!("bye");
                 break;
+            }
+
+            "time" => {
+                let ts_ms = sys_time() as i128;
+                if ts_ms == 0 {
+                    println!("Failed to get time");
+                    continue;
+                }
+
+                let beijing_ms = ts_ms + 8 * 60 * 60 * 1_000;
+
+                let secs = (beijing_ms / 1_000) as i64;
+                let sub_ms = (beijing_ms % 1_000) as u32;
+                let nanos = sub_ms * 1_000_000;
+
+                if let Some(ndt) = NaiveDateTime::from_timestamp_opt(secs, nanos) {
+                    println!(
+                        "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
+                        ndt.year(),
+                        ndt.month(),
+                        ndt.day(),
+                        ndt.hour(),
+                        ndt.minute(),
+                        ndt.second(),
+                    );
+                } else {
+                    println!("(invalid timestamp)");
+                }
             }
 
             "echo" => {

@@ -57,6 +57,8 @@ pub fn dispatcher(context: &mut ProcessContext) {
         // fd: arg0 as u8, buf: &[u8] (ptr: arg1 as *const u8, len: arg2)
         Syscall::Write => context.set_rax(sys_write(&args)),
 
+        Syscall::Time => context.set_rax(sys_time()),
+
         // None -> pid: u16
         Syscall::GetPid => context.set_rax(sys_get_pid()),
 
