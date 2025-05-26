@@ -1,5 +1,7 @@
 use super::{processor::get_pid, *};
 use crate::humanized_size;
+use crate::memory::user::USER_ALLOCATOR;
+use crate::memory::user::USER_HEAP_SIZE;
 use crate::memory::{
     self, PAGE_SIZE,
     allocator::{ALLOCATOR, HEAP_SIZE},
@@ -278,7 +280,7 @@ impl ProcessManager {
         // info!("Physical Memory    : {:>7.*} {}", 3, size, unit);
 
         output += format!(
-            "Kernel Heap: {:>7.*} {} / {:>7.*} {} ({:.2}%)\n",
+            "Memory Used: {:>7.*} {} / {:>7.*} {} ({:.2}%)\n",
             3,
             used_humanized,
             used_unit,
@@ -288,6 +290,26 @@ impl ProcessManager {
             (used as f64 / total as f64) * 100.0
         )
         .as_str();
+
+        // Print Memory Usage of each process
+        output += "\nProcess Memory Usage:\n";
+        self.processes
+            .read()
+            .values()
+            .filter(|p| p.read().status() != ProgramStatus::Dead)
+            .for_each(|p| {
+                let mem_usage = p.read().vm().memory_usage();
+                let (size, unit) = humanized_size(mem_usage);
+                output += format!(
+                    "  {}#{}: {:>7.*} {}\n",
+                    p.read().name(),
+                    p.pid(),
+                    3,
+                    size,
+                    unit
+                )
+                .as_str();
+            });
 
         output += format!("Queue  : {:?}\n", self.ready_queue.lock()).as_str();
 

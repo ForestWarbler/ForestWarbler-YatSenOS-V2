@@ -133,6 +133,10 @@ impl Stack {
     pub fn memory_usage(&self) -> u64 {
         self.usage * crate::memory::PAGE_SIZE
     }
+
+    pub fn range(&self) -> &PageRange<Size4KiB> {
+        &self.range
+    }
 }
 
 impl core::fmt::Debug for Stack {

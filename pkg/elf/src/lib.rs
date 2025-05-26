@@ -233,3 +233,30 @@ fn load_segment(
 
     Ok(())
 }
+
+pub fn unmap_range(
+    addr: u64,
+    count: u64,
+    page_table: &mut impl Mapper<Size4KiB>,
+    frame_deallocator: &mut impl FrameDeallocator<Size4KiB>,
+) -> Result<(), MapToError<Size4KiB>> {
+    let first_page = Page::containing_address(VirtAddr::new(addr));
+    let last_page  = first_page + count;
+
+    trace!(
+        "Unmapping pages: [{:#x} – {:#x}) ({} pages)",
+        addr,
+        last_page.start_address().as_u64(),
+        count
+    );
+
+    for page in Page::range(first_page, last_page) {
+        let frame = page_table.unmap(page).unwrap();
+        unsafe {
+            frame_deallocator.deallocate_frame(frame.0);
+        }
+        frame.1.flush();
+    }
+
+    Ok(())
+}

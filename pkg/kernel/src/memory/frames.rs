@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 use boot::{MemoryMap, MemoryType};
 use x86_64::PhysAddr;
 use x86_64::structures::paging::{FrameAllocator, FrameDeallocator, PhysFrame, Size4KiB};
+use alloc::vec::Vec;
 
 once_mutex!(pub FRAME_ALLOCATOR: BootInfoFrameAllocator);
 
@@ -18,6 +19,7 @@ pub struct BootInfoFrameAllocator {
     size: usize,
     used: usize,
     frames: BootInfoFrameIter,
+    recycled: Vec<PhysFrame>,
 }
 
 impl BootInfoFrameAllocator {
@@ -31,6 +33,7 @@ impl BootInfoFrameAllocator {
             size,
             frames: create_frame_iter(memory_map),
             used: 0,
+            recycled: Vec::with_capacity(size),
         }
     }
 
@@ -41,19 +44,28 @@ impl BootInfoFrameAllocator {
     pub fn frames_total(&self) -> usize {
         self.size
     }
+
+    pub fn recycled_size(&self) -> usize {
+        self.recycled.len()
+    }
 }
 
 unsafe impl FrameAllocator<Size4KiB> for BootInfoFrameAllocator {
     fn allocate_frame(&mut self) -> Option<PhysFrame> {
         self.used += 1;
-        self.frames.next()
+        if let Some(frame) = self.recycled.pop() {
+            Some(frame)
+        } else {
+            self.frames.next()
+        }
     }
 }
 
 impl FrameDeallocator<Size4KiB> for BootInfoFrameAllocator {
     unsafe fn deallocate_frame(&mut self, _frame: PhysFrame) {
         // TODO: deallocate frame (not for lab 2)
-        // self.used -= 1;
+        self.used -= 1;
+        self.recycled.push(_frame);
     }
 }
 

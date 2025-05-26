@@ -89,6 +89,24 @@ impl ProcessVm {
         VirtAddr::new(stack_top_addr)
     }
 
+    pub fn clean_user_stack(&mut self) {
+        // clean user stack
+        let mapper = &mut self.page_table.mapper();
+        let alloc = &mut *get_frame_alloc_for_sure();
+
+        let stack_top = self.stack.range().start;
+        let stack_bot = self.stack.range().end;
+        let page_count = self.stack.range().count();
+
+        unmap_range(
+            stack_top.start_address().as_u64(),
+            page_count as u64,
+            mapper,
+            alloc,
+        )
+        .expect("Unmap user stack failed.");
+    }
+
     pub fn handle_page_fault(&mut self, addr: VirtAddr) -> bool {
         let mapper = &mut self.page_table.mapper();
         let alloc = &mut *get_frame_alloc_for_sure();

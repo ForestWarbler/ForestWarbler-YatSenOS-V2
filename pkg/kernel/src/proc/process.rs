@@ -176,6 +176,7 @@ impl ProcessInner {
         self.status = ProgramStatus::Dead;
 
         // FIXME: take and drop unused resources
+        self.vm_mut().clean_user_stack();
         self.page_table.take();
         self.proc_vm.take();
         self.proc_data.take();
