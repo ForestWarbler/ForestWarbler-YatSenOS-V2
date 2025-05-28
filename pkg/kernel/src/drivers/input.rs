@@ -34,8 +34,12 @@ pub fn get_line() -> String {
     loop {
         let key = pop_key();
         if key == b'\n' || key == b'\r' {
+            if !buf.is_empty() {
+                print!("\n");
+            }
             break;
         } else {
+            print!("{}", String::from_utf8_lossy(&[key]));
             buf.push(key);
         }
     }

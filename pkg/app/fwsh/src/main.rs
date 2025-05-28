@@ -40,7 +40,7 @@ fn main() -> isize {
             }
 
             "exit" | "quit" => {
-                println!("bye");
+                println!("\n === bye === \n");
                 break;
             }
 

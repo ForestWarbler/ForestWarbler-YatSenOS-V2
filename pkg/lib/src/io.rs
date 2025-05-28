@@ -49,6 +49,7 @@ impl Stdin {
                                 }
                             }
                             _ => {
+                                self::print!("{}", ch);
                                 s.push(ch);
                             }
                         }
