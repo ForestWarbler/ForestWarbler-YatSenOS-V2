@@ -41,6 +41,7 @@ pub struct ProcessManager {
     processes: RwLock<BTreeMap<ProcessId, Arc<Process>>>,
     ready_queue: Mutex<VecDeque<ProcessId>>,
     app_list: AppListRef,
+    // wait_queue: Mutex<BTreeMap<ProcessId, BTreeSet<ProcessId>>>,
 }
 
 impl ProcessManager {
@@ -179,6 +180,41 @@ impl ProcessManager {
         self.push_ready(pid);
 
         pid
+    }
+
+    pub fn fork(&self) -> u64 {
+        // FIXME: get current process
+        let parent = self.current();
+        let parent_pid = parent.pid();
+        trace!("Forking process: {}#{}", parent.read().name(), parent_pid);
+        // FIXME: fork to get child
+        let child = parent.fork();
+        let child_pid = child.pid();
+        trace!(
+            "Forked child process: {}#{}",
+            child.read().name(),
+            child_pid
+        );
+        // FIXME: add child to process list
+        self.add_proc(child_pid, Arc::clone(&child));
+
+        parent.write().pause();
+        child.write().pause();
+
+        self.push_ready(parent_pid);
+        self.push_ready(child_pid);
+
+        // FOR DBG: maybe print the process ready queue?
+        trace!("Queue  : {:?}\n", self.ready_queue.lock());
+
+        child_pid.0 as u64
+    }
+
+    pub fn block(&self, pid: ProcessId) {
+        if let Some(proc) = self.get_proc(&pid) {
+            // FIXME: set the process as blocked
+            proc.write().block();
+        }
     }
 
     pub fn kill_current(&self, ret: isize) {

@@ -63,3 +63,7 @@ pub fn sleep(millisecs: u64) {
         current = sys_time();
     }
 }
+
+pub fn fork() -> u16 {
+    sys_fork()
+}

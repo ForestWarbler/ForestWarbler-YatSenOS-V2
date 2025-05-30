@@ -38,13 +38,14 @@ pub fn sys_time() -> u64 {
 pub fn sys_wait_pid(pid: u16) -> isize {
     // FIXME: try to get the return value for process
     //        loop until the process is finished
+    let mut ret = -1;
     loop {
-        let ret = syscall!(Syscall::WaitPid, pid as u64) as isize;
+        ret = syscall!(Syscall::WaitPid, pid as u64) as isize;
         if ret != 20050615 {
             break;
         }
     }
-    pid as isize
+    ret as isize
 }
 
 #[inline(always)]
@@ -81,4 +82,8 @@ pub fn sys_get_pid() -> u16 {
 pub fn sys_exit(code: isize) -> ! {
     syscall!(Syscall::Exit, code as u64);
     unreachable!("This process should be terminated by now.")
+}
+
+pub fn sys_fork() -> u16 {
+    syscall!(Syscall::Fork) as u16
 }

@@ -5,6 +5,7 @@ use x86_64::{
 
 use super::{FrameAllocatorRef, MapperRef};
 use elf::*;
+use core::ptr::copy_nonoverlapping;
 
 // 0xffff_ff00_0000_0000 is the kernel's address space
 pub const STACK_MAX: u64 = 0x4000_0000_0000;
@@ -137,6 +138,43 @@ impl Stack {
     pub fn range(&self) -> &PageRange<Size4KiB> {
         &self.range
     }
+
+    pub fn fork(
+        &self,
+        mapper: MapperRef,
+        alloc: FrameAllocatorRef,
+        mut stack_offset_count: u64,
+    ) -> Self {
+        let mut child_stack_top = self.range.start.start_address().as_u64() - stack_offset_count * STACK_MAX_SIZE;
+        while elf::map_range(child_stack_top, self.usage, mapper, alloc, true, false).is_err() {
+            trace!("Failed to map new stack on {:#x}, retrying...", child_stack_top);
+            child_stack_top -= STACK_MAX_SIZE;
+        }
+
+        self.clone_range(
+            self.range.start.start_address().as_u64(),
+            child_stack_top,
+            self.usage,
+        );
+
+        let start = Page::containing_address(VirtAddr::new(child_stack_top));
+        Self {
+            range: Page::range(start, start + self.usage),
+            usage: self.usage
+        }
+    }
+    
+    fn clone_range(&self, cur_addr: u64, dest_addr: u64, size: u64) {
+    trace!("Clone range: {:#x} -> {:#x}", cur_addr, dest_addr);
+    unsafe {
+        copy_nonoverlapping::<u64>(
+            cur_addr as *mut u64,
+            dest_addr as *mut u64,
+            (size * Size4KiB::SIZE / 8) as usize,
+        );
+    }
+}
+
 }
 
 impl core::fmt::Debug for Stack {

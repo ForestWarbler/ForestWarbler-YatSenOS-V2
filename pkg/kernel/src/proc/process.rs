@@ -5,6 +5,7 @@ use crate::proc::vm::stack::*;
 use alloc::sync::Arc;
 use alloc::sync::Weak;
 use alloc::vec::Vec;
+use chrono::offset;
 use spin::*;
 use x86_64::structures::paging::mapper::MapToError;
 use x86_64::structures::paging::page::PageRange;
@@ -98,6 +99,29 @@ impl Process {
     pub fn alloc_init_user_stack(&self) -> VirtAddr {
         self.write().vm_mut().init_user_proc_stack(self.pid)
     }
+
+    pub fn fork(self: &Arc<Self>) -> Arc<Process> {
+        // FIXME: lock inner as write
+        let mut inner = self.write();
+        // FIXME: inner fork with parent weak ref
+        let parent = Arc::downgrade(self);
+        let child_inner = inner.fork(Some(parent));
+
+        // FOR DBG: maybe print the child process info
+        //          e.g. parent, name, pid, etc.
+
+        // FIXME: make the arc of child
+        let child = Arc::new(Process {
+            pid: ProcessId::new(),
+            inner: Arc::new(RwLock::new(child_inner)),
+        });
+        // FIXME: add child to current process's children list
+        inner.children.push(child.clone());
+        // FIXME: set fork ret value for parent with `context.set_rax`
+        inner.context.set_rax(child.pid.0 as usize);
+        drop(inner);
+        child
+    }
 }
 
 impl ProcessInner {
@@ -119,6 +143,10 @@ impl ProcessInner {
 
     pub fn resume(&mut self) {
         self.status = ProgramStatus::Running;
+    }
+
+    pub fn block(&mut self) {
+        self.status = ProgramStatus::Blocked;
     }
 
     pub fn exit_code(&self) -> Option<isize> {
@@ -192,6 +220,43 @@ impl ProcessInner {
 
     pub fn load_elf(&mut self, elf: &ElfFile) {
         self.proc_vm.as_mut().unwrap().load_elf(elf);
+    }
+
+    pub fn fork(&self, parent: Option<Weak<Process>>) -> ProcessInner {
+        // FIXME: fork the process virtual memory struct
+        // FIXME: calculate the real stack offset
+        // FIXME: update `rsp` in interrupt stack frame
+        // Calculate the stack offset
+        let stack_offset_count = self.children.len() as u64;
+        let child_vm = self.proc_vm.as_ref().unwrap().fork(stack_offset_count);
+        let child_page_table = child_vm.page_table.clone_level_4();
+
+        let child_stack_bot = child_vm.stack.range().start.start_address().as_u64();
+        let parent_stack_bot = self.vm().stack.range().start.start_address().as_u64();
+        let offset = child_stack_bot - parent_stack_bot;
+
+        // FIXME: set the return value 0 for child with `context.set_rax`
+        let mut child_ctx: ProcessContext = self.context;
+        child_ctx.set_rsp_offset(offset);
+        child_ctx.set_rax(0);
+
+        // FIXME: clone the process data struct
+        let child_proc_data = self.proc_data.as_ref().map(|data| data.clone());
+
+        // FIXME: construct the child process inner
+        ProcessInner {
+            name: self.name.clone(),
+            parent,
+            children: Vec::new(),
+            ticks_passed: 0,
+            status: ProgramStatus::Ready,
+            context: child_ctx,
+            exit_code: None,
+            proc_data: self.proc_data.clone(),
+            page_table: Some(child_page_table),
+            proc_vm: Some(child_vm),
+        }
+        // NOTE: return inner because there's no pid record in inner
     }
 }
 

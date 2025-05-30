@@ -100,7 +100,7 @@ fn main() -> isize {
                 }
                 let app_name = token[1];
                 let ret = sys_wait_pid(sys_spawn(app_name));
-                if ret == 0 {
+                if ret == -1 {
                     println!("Failed to execute {}", app_name);
                 }
             }

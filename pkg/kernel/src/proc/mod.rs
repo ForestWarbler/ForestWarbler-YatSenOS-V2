@@ -173,6 +173,28 @@ pub fn exit(ret: isize, context: &mut ProcessContext) {
     })
 }
 
+pub fn wait_pid(pid: u16) -> usize {
+    let ret = get_process_manager().get_exit_code(&ProcessId(pid));
+    match ret {
+        Some(code) => code as usize,
+        None => {
+            return 20050615;
+        }
+    };
+
+    ret.unwrap() as usize
+}
+
+pub fn fork(context: &mut ProcessContext) {
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        let manager = get_process_manager();
+        manager.save_current(context);
+        let child_pid = manager.fork();
+        manager.switch_next(context);
+        // warn!("Forked process: {}#{}", manager.current().read().name(), child_pid);
+    });
+}
+
 #[inline]
 pub fn still_alive(pid: ProcessId) -> bool {
     x86_64::instructions::interrupts::without_interrupts(|| {

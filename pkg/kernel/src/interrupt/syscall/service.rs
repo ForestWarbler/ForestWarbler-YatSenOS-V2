@@ -1,3 +1,4 @@
+use alloc::sync::Arc;
 use core::alloc::Layout;
 
 use crate::interrupt::clock::current_time_fixed;
@@ -100,13 +101,9 @@ pub fn sys_get_pid() -> usize {
 
 pub fn sys_wait_pid(args: &SyscallArgs) -> usize {
     let pid = args.arg0 as u16;
-    let ret = get_process_manager().get_exit_code(&ProcessId(pid));
-    match ret {
-        Some(code) => code as usize,
-        None => {
-            return 20050615;
-        }
-    };
+    wait_pid(pid)
+}
 
-    ret.unwrap() as usize
+pub fn sys_fork(context: &mut ProcessContext) {
+    fork(context)
 }
