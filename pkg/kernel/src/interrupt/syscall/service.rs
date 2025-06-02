@@ -99,11 +99,21 @@ pub fn sys_get_pid() -> usize {
     get_process_manager().current().pid().0 as usize
 }
 
-pub fn sys_wait_pid(args: &SyscallArgs) -> usize {
+pub fn sys_wait_pid(args: &SyscallArgs, context: &mut ProcessContext) {
     let pid = args.arg0 as u16;
-    wait_pid(pid)
+    wait_pid(pid, context);
 }
 
 pub fn sys_fork(context: &mut ProcessContext) {
     fork(context)
+}
+
+pub fn sys_sem(args: &SyscallArgs, context: &mut ProcessContext) {
+    match args.arg0 {
+        0 => context.set_rax(new_sem(args.arg1 as u32, args.arg2)),
+        1 => context.set_rax(remove_sem(args.arg1 as u32)),
+        2 => sem_signal(args.arg1 as u32, context),
+        3 => sem_wait(args.arg1 as u32, context),
+        _ => context.set_rax(usize::MAX),
+    }
 }

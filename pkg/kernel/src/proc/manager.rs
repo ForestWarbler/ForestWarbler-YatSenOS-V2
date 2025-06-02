@@ -41,7 +41,7 @@ pub struct ProcessManager {
     processes: RwLock<BTreeMap<ProcessId, Arc<Process>>>,
     ready_queue: Mutex<VecDeque<ProcessId>>,
     app_list: AppListRef,
-    // wait_queue: Mutex<BTreeMap<ProcessId, BTreeSet<ProcessId>>>,
+    wait_queue: Mutex<BTreeMap<ProcessId, BTreeSet<ProcessId>>>,
 }
 
 impl ProcessManager {
@@ -58,6 +58,7 @@ impl ProcessManager {
             processes: RwLock::new(processes),
             ready_queue: Mutex::new(ready_queue),
             app_list,
+            wait_queue: Mutex::new(BTreeMap::new()),
         }
     }
 
@@ -90,30 +91,23 @@ impl ProcessManager {
     }
 
     pub fn switch_next(&self, context: &mut ProcessContext) -> ProcessId {
-        // FIXME: fetch the next process from ready queue
-        let mut ready_queue = self.ready_queue.lock();
-        if ready_queue.is_empty() {
-            warn!("No process in the ready queue.");
-            return ProcessId::new();
+        // Fixed Version: Loop until a valid process is found
+        loop {
+            if let Some(next_pid) = self.ready_queue.lock().pop_front() {
+                if let Some(next_proc) = self.get_proc(&next_pid) {
+                    if next_proc.read().status() == ProgramStatus::Ready {
+                        next_proc.write().restore(context);
+                        processor::set_pid(next_pid);
+                        return next_pid;
+                    } else {
+                        continue;
+                    }
+                }
+            } else {
+                warn!("No process in the ready queue.");
+                return processor::get_pid();
+            }
         }
-        let next_pid = ready_queue.pop_front().unwrap();
-        let next_proc = self.get_proc(&next_pid).unwrap();
-        // trace!("Switching to process {:#?}", next_proc);
-
-        // FIXME: check if the next process is ready,
-        //        continue to fetch if not ready
-        if next_proc.read().status() != ProgramStatus::Ready {
-            return get_pid();
-        }
-
-        // FIXME: restore next process's context
-        next_proc.write().restore(context);
-
-        // FIXME: update processor's current pid
-        processor::set_pid(next_pid);
-
-        // FIXME: return next process's pid
-        next_pid
     }
 
     // pub fn spawn_kernel_thread(
@@ -217,6 +211,34 @@ impl ProcessManager {
         }
     }
 
+    pub fn wait_pid(&self, pid: ProcessId) {
+        let mut wait_queue = self.wait_queue.lock();
+        // FIXME: push the current process to the wait queue
+        //        `processor::get_pid()` is waiting for `pid`
+        let cur_pid = processor::get_pid();
+        wait_queue
+            .entry(pid)
+            .or_insert_with(BTreeSet::new)
+            .insert(cur_pid);
+    }
+
+    pub fn wake_up(&self, pid: ProcessId, ret: Option<isize>) {
+        if let Some(proc) = self.get_proc(&pid) {
+            let mut inner = proc.write();
+            if let Some(ret) = ret {
+                // FIXME: set the return value of the process
+                //        like `context.set_rax(ret as usize)`
+                inner.set_rax(ret as usize);
+            }
+            // FIXME: set the process as ready
+            // FIXME: push to ready queue
+
+            inner.pause();
+            self.push_ready(pid);
+            trace!("Wake up process: {}#{}", inner.name(), pid);
+        }
+    }
+
     pub fn kill_current(&self, ret: isize) {
         self.kill(processor::get_pid(), ret);
     }
@@ -292,6 +314,12 @@ impl ProcessManager {
         trace!("Kill {:#?}", &proc);
 
         proc.kill(ret);
+
+        if let Some(pids) = self.wait_queue.lock().remove(&pid) {
+            for pid in pids {
+                self.wake_up(pid, Some(ret));
+            }
+        }
     }
 
     pub fn print_process_list(&self) {

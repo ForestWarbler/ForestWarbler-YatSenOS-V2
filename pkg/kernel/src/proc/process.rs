@@ -1,5 +1,6 @@
 use super::*;
 use crate::memory::*;
+use crate::proc::sync::*;
 use crate::proc::vm::ProcessVm;
 use crate::proc::vm::stack::*;
 use alloc::sync::Arc;
@@ -257,6 +258,10 @@ impl ProcessInner {
             proc_vm: Some(child_vm),
         }
         // NOTE: return inner because there's no pid record in inner
+    }
+
+    pub fn set_rax(&mut self, value: usize) {
+        self.context.set_rax(value);
     }
 }
 

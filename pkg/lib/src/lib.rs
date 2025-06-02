@@ -13,12 +13,16 @@ pub mod io;
 pub mod allocator;
 pub extern crate alloc;
 
+pub mod rand;
+mod sync;
 mod syscall;
 
 use core::fmt::*;
 
 pub use alloc::*;
 pub use io::*;
+pub use rand::*;
+pub use sync::*;
 pub use syscall::*;
 
 use core::time::Duration;
