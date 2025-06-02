@@ -90,24 +90,52 @@ impl ProcessManager {
         proc.write().save(context);
     }
 
+    // pub fn switch_next(&self, context: &mut ProcessContext) -> ProcessId {
+    //     // Fixed Version: Loop until a valid process is found
+    //     loop {
+    //         if let Some(next_pid) = self.ready_queue.lock().pop_front() {
+    //             if let Some(next_proc) = self.get_proc(&next_pid) {
+    //                 if next_proc.read().status() == ProgramStatus::Ready {
+    //                     next_proc.write().restore(context);
+    //                     processor::set_pid(next_pid);
+    //                     return next_pid;
+    //                 } else {
+    //                     continue;
+    //                 }
+    //             }
+    //         } else {
+    //             warn!("No process in the ready queue.");
+    //             return processor::get_pid();
+    //         }
+    //     }
+    // }
+
     pub fn switch_next(&self, context: &mut ProcessContext) -> ProcessId {
-        // Fixed Version: Loop until a valid process is found
-        loop {
-            if let Some(next_pid) = self.ready_queue.lock().pop_front() {
-                if let Some(next_proc) = self.get_proc(&next_pid) {
-                    if next_proc.read().status() == ProgramStatus::Ready {
-                        next_proc.write().restore(context);
-                        processor::set_pid(next_pid);
-                        return next_pid;
-                    } else {
-                        continue;
-                    }
-                }
-            } else {
-                warn!("No process in the ready queue.");
-                return processor::get_pid();
-            }
+        // FIXME: fetch the next process from ready queue
+        let mut ready_queue = self.ready_queue.lock();
+        if ready_queue.is_empty() {
+            warn!("No process in the ready queue.");
+            return ProcessId::new();
         }
+        let cur_pid = processor::get_pid();
+        let next_pid = ready_queue.pop_front().unwrap();
+        let next_proc = self.get_proc(&next_pid).unwrap();
+        // trace!("Switching to process {:#?}", next_proc);
+
+        // FIXME: check if the next process is ready,
+        //        continue to fetch if not ready
+        if next_proc.read().status() != ProgramStatus::Ready {
+            return get_pid();
+        }
+
+        // FIXME: restore next process's context
+        next_proc.write().restore(context);
+
+        // FIXME: update processor's current pid
+        processor::set_pid(next_pid);
+
+        // FIXME: return next process's pid
+        next_pid
     }
 
     // pub fn spawn_kernel_thread(
