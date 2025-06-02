@@ -11,6 +11,7 @@ const N: usize = 5;
 const EAT_TIMES: usize = 3;
 
 static CHOPSTICK: [Semaphore; N] = semaphore_array!(0, 1, 2, 3, 4);
+static ROOM_SIZE:Semaphore = Semaphore::new(5);
 static PRINT: SpinLock = SpinLock::new();
 
 #[inline(always)]
@@ -28,25 +29,26 @@ fn philosopher(id: usize) {
     for k in 0..EAT_TIMES {
         // Test starvation
         // if id == 0 {
-        //     busy(100000);
+        //     busy(10000);
         // } else if id == 1 || id == 4 { /* Not thinking at all */
         // } else {
         //     busy(1000);
         // }
 
-        if id & 1 == 0 {
-            CHOPSTICK[l].wait();
-            CHOPSTICK[r].wait();
-        } else {
-            CHOPSTICK[r].wait();
-            CHOPSTICK[l].wait();
-        }
+        // if id & 1 == 0 {
+        //     CHOPSTICK[l].wait();
+        //     CHOPSTICK[r].wait();
+        // } else {
+        //     CHOPSTICK[r].wait();
+        //     CHOPSTICK[l].wait();
+        // }
 
         // Test deadlock
-        // CHOPSTICK[l].wait();
+        ROOM_SIZE.wait();
+        CHOPSTICK[l].wait();
         // busy(1000000);
         // println!("Philosopher {id} picked up left chopstick #{l}");
-        // CHOPSTICK[r].wait();
+        CHOPSTICK[r].wait();
 
         PRINT.acquire();
         println!("Philosopher {id} is eating #{k}");
@@ -64,6 +66,8 @@ fn philosopher(id: usize) {
         CHOPSTICK[l].signal();
         CHOPSTICK[r].signal();
 
+        ROOM_SIZE.signal();
+
         PRINT.acquire();
         println!("Philosopher {id} is thinking #{k}");
         PRINT.release();
@@ -76,6 +80,7 @@ fn main() -> isize {
     for c in 0..N {
         CHOPSTICK[c].init(1);
     }
+    ROOM_SIZE.init(N - 1);
     let mut pids = [0u16; N];
 
     for i in 0..N {
