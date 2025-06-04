@@ -2,8 +2,15 @@
 #![no_main]
 
 use uefi::proto::debug;
+use uefi::proto::media::partition;
 use ysos::*;
 use ysos_kernel as ysos;
+use ysos_kernel::drivers::ata::AtaDrive;
+use storage::mbr::MbrTable;
+use storage::PartitionTable;
+use storage::FsError;
+use storage::Block;
+use log::*;
 
 extern crate alloc;
 
@@ -11,6 +18,9 @@ boot::entry_point!(kernel_main);
 
 pub fn kernel_main(boot_info: &'static boot::BootInfo) -> ! {
     ysos::init(boot_info);
+
+    drive_init();
+
     ysos::wait(spawn_init());
     ysos::shutdown();
 }
@@ -21,4 +31,17 @@ pub fn spawn_init() -> proc::ProcessId {
 
     proc::list_app();
     proc::spawn("fwsh").unwrap()
+}
+
+pub fn drive_init() {
+    let drive = AtaDrive::open(0, 0).expect("Failed to open ATA drive 0:0");
+    let mbr: MbrTable<_, Block<512>> = MbrTable::parse(drive).expect("Failed to parse MBR");
+    let partitions = mbr.partitions().expect("Failed to get partitions");
+    if partitions.is_empty() {
+        error!("No active partitions found");
+        ysos::shutdown();
+    }
+    for part in &partitions {
+        info!("Partition: {:#?}", part);
+    }
 }
