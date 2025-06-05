@@ -1,16 +1,17 @@
 #![no_std]
 #![no_main]
 
+use log::*;
+use storage::Block;
+use storage::FsError;
+use storage::PartitionTable;
+use storage::mbr::MbrTable;
 use uefi::proto::debug;
 use uefi::proto::media::partition;
 use ysos::*;
 use ysos_kernel as ysos;
 use ysos_kernel::drivers::ata::AtaDrive;
-use storage::mbr::MbrTable;
-use storage::PartitionTable;
-use storage::FsError;
-use storage::Block;
-use log::*;
+use ysos_kernel::drivers::filesystem;
 
 extern crate alloc;
 
@@ -18,9 +19,8 @@ boot::entry_point!(kernel_main);
 
 pub fn kernel_main(boot_info: &'static boot::BootInfo) -> ! {
     ysos::init(boot_info);
-
     drive_init();
-
+    filesystem::init();
     ysos::wait(spawn_init());
     ysos::shutdown();
 }

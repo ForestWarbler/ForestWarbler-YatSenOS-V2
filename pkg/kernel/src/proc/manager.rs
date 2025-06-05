@@ -186,6 +186,8 @@ impl ProcessManager {
         inner.load_elf(elf);
         // FIXME: alloc new stack for process
         let stack_top: VirtAddr = inner.vm_mut().init_user_proc_stack(pid);
+        info!("spawn: pid={} entry={:#x} stack_top={:#x}", pid,
+        elf.header.pt2.entry_point(), stack_top);
         inner.init_user_stack_frame(
             VirtAddr::new(elf.header.pt2.entry_point() as u64),
             stack_top,

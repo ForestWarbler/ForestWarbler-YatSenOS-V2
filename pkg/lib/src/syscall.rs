@@ -103,3 +103,15 @@ pub fn sys_sem_signal(key: u32) -> usize {
 pub fn sys_sem_wait(key: u32) -> usize {
     syscall!(Syscall::Sem, 3, key)
 }
+
+pub fn sys_list_dir(path: &str) -> usize {
+    syscall!(Syscall::ListDir, path.as_ptr() as u64, path.len() as u64) as usize
+}
+
+pub fn sys_exists(path: &str) -> bool {
+    syscall!(Syscall::Exists, path.as_ptr() as u64, path.len() as u64) != 0
+}
+
+pub fn sys_cat(path: &str) -> usize {
+    syscall!(Syscall::Cat, path.as_ptr() as u64, path.len() as u64)
+}

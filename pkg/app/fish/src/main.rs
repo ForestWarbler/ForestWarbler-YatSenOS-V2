@@ -6,9 +6,9 @@ extern crate lib;
 
 const FISH_CNT: usize = 40;
 
-static SEM_LT:   Semaphore = Semaphore::new(1);
-static SEM_GT:   Semaphore = Semaphore::new(2);
-static SEM_US:   Semaphore = Semaphore::new(3);
+static SEM_LT: Semaphore = Semaphore::new(1);
+static SEM_GT: Semaphore = Semaphore::new(2);
+static SEM_US: Semaphore = Semaphore::new(3);
 static SEM_DONE: Semaphore = Semaphore::new(4);
 
 static PRINT: SpinLock = SpinLock::new();
@@ -58,16 +58,24 @@ fn main() -> isize {
     for _ in 0..FISH_CNT {
         if dir_left_first {
             // print <><_
-            SEM_LT.signal();   SEM_DONE.wait();
-            SEM_GT.signal();   SEM_DONE.wait();
-            SEM_LT.signal();   SEM_DONE.wait();
-            SEM_US.signal();   SEM_DONE.wait();
+            SEM_LT.signal();
+            SEM_DONE.wait();
+            SEM_GT.signal();
+            SEM_DONE.wait();
+            SEM_LT.signal();
+            SEM_DONE.wait();
+            SEM_US.signal();
+            SEM_DONE.wait();
         } else {
             // print ><>_
-            SEM_GT.signal();   SEM_DONE.wait();
-            SEM_LT.signal();   SEM_DONE.wait();
-            SEM_GT.signal();   SEM_DONE.wait();
-            SEM_US.signal();   SEM_DONE.wait();
+            SEM_GT.signal();
+            SEM_DONE.wait();
+            SEM_LT.signal();
+            SEM_DONE.wait();
+            SEM_GT.signal();
+            SEM_DONE.wait();
+            SEM_US.signal();
+            SEM_DONE.wait();
         }
         dir_left_first = !dir_left_first;
     }

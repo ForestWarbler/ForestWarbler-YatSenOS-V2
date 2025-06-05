@@ -1,10 +1,13 @@
 use alloc::sync::Arc;
 use core::alloc::Layout;
+use storage::fat16::file;
 
+use crate::drivers::filesystem;
 use crate::interrupt::clock::current_time_fixed;
 use crate::proc::manager::get_process_manager;
 use crate::proc::*;
 use crate::utils::*;
+use alloc::string::String;
 
 use super::SyscallArgs;
 
@@ -116,4 +119,39 @@ pub fn sys_sem(args: &SyscallArgs, context: &mut ProcessContext) {
         3 => sem_wait(args.arg1 as u32, context),
         _ => context.set_rax(usize::MAX),
     }
+}
+
+pub fn list_dir(args: &SyscallArgs) {
+    let root_dir = unsafe {
+        core::str::from_utf8_unchecked(core::slice::from_raw_parts(
+            args.arg0 as *const u8,
+            args.arg1 as usize,
+        ))
+    };
+    filesystem::ls(root_dir);
+}
+
+pub fn sys_exists(args: &SyscallArgs) -> usize {
+    let path = unsafe {
+        core::str::from_utf8_unchecked(core::slice::from_raw_parts(
+            args.arg0 as *const u8,
+            args.arg1 as usize,
+        ))
+    };
+    if filesystem::check_dir_exists(path) {
+        1 // exists
+    } else {
+        0 // does not exist
+    }
+}
+
+pub fn sys_cat(args: &SyscallArgs) -> Option<String> {
+    let path = unsafe {
+        core::str::from_utf8_unchecked(core::slice::from_raw_parts(
+            args.arg0 as *const u8,
+            args.arg1 as usize,
+        ))
+    };
+
+    filesystem::cat(path)
 }

@@ -41,9 +41,13 @@ impl AtaDrive {
         // we only support PATA drives
         if let Ok(AtaDeviceType::Pata(res)) = BUSES[bus as usize].lock().identify_drive(drive) {
             let buf = res.map(u16::to_be_bytes).concat();
-            let serial = String::from_utf8_lossy(&buf[20..40]).trim_end_matches('\0').into();
-            let model = String::from_utf8_lossy(&buf[54..94]).trim_end_matches('\0').into();
-            let blocks = ((res[60] as u32) << 16) | (res[61] as u32);
+            let serial = String::from_utf8_lossy(&buf[20..40])
+                .trim_end_matches('\0')
+                .into();
+            let model = String::from_utf8_lossy(&buf[54..94])
+                .trim_end_matches('\0')
+                .into();
+            let blocks = ((res[61] as u32) << 16) | (res[60] as u32);
             let ata_drive = Self {
                 bus,
                 drive,

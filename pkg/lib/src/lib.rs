@@ -71,3 +71,15 @@ pub fn sleep(millisecs: u64) {
 pub fn fork() -> u16 {
     sys_fork()
 }
+
+pub fn sys_ls(path: &str) {
+    sys_list_dir(path);
+}
+
+pub fn dir_exists(path: &str) -> bool {
+    sys_exists(path)
+}
+
+pub fn cat(path: &str) -> usize {
+    sys_cat(path)
+}

@@ -40,8 +40,11 @@ where
             partitions.push(
                 // FIXME: parse the mbr partition from the buffer
                 //      - just ignore other fields for mbr
-                MbrPartition::parse((&buffer[(0x1be + i * 16)..(0x1be + i * 16) + 16]).try_into().unwrap()),
-                
+                MbrPartition::parse(
+                    (&buffer[(0x1be + i * 16)..(0x1be + i * 16) + 16])
+                        .try_into()
+                        .unwrap(),
+                ),
             );
 
             if partitions[i].is_active() {

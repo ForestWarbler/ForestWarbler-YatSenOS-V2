@@ -1,4 +1,5 @@
 use crate::*;
+use alloc::string::ToString;
 use chrono::{DateTime, Utc};
 
 pub type FsTime = DateTime<Utc>;
@@ -59,5 +60,16 @@ impl Metadata {
     #[inline]
     pub fn is_dir(&self) -> bool {
         self.entry_type == FileType::Directory
+    }
+
+    pub fn root() -> Self {
+        Self {
+            name: "/".to_string(),
+            entry_type: FileType::Directory,
+            len: 0,
+            created: None,
+            modified: None,
+            accessed: None,
+        }
     }
 }

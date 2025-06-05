@@ -49,6 +49,18 @@ impl DirEntry {
         }
     }
 
+    pub fn is_valid(&self) -> bool {
+        !self.filename.is_eod() && !self.filename.is_unused()
+    }
+
+    pub fn is_long_name(&self) -> bool {
+        self.attributes.contains(Attributes::LFN)
+    }
+
+    pub fn is_directory(&self) -> bool {
+        self.attributes.contains(Attributes::DIRECTORY)
+    }
+
     /// For Standard 8.3 format
     ///
     /// reference: https://osdev.org/FAT#Standard_8.3_format
@@ -58,6 +70,19 @@ impl DirEntry {
         // FIXME: parse the rest of the fields
         //      - ensure you can pass the test
         //      - you may need `prase_datetime` function
+
+        let attributes = Attributes::from_bits_truncate(data[11]);
+        let created_time_raw = u32::from_le_bytes(data[14..18].try_into().unwrap());
+        let created_time = prase_datetime(created_time_raw);
+        let accessed_time_raw = u32::from_le_bytes([0, 0, data[18], data[19]]);
+        let accessed_time = prase_datetime(accessed_time_raw);
+        let cluster = (data[20] as u32) << 16
+            | (data[21] as u32) << 24
+            | (data[26] as u32)
+            | (data[27] as u32) << 8;
+        let modified_time_raw = u32::from_le_bytes(data[22..26].try_into().unwrap());
+        let modified_time = prase_datetime(modified_time_raw);
+        let size = u32::from_le_bytes(data[28..32].try_into().unwrap());
 
         Ok(DirEntry {
             filename,
@@ -77,6 +102,12 @@ impl DirEntry {
 
 fn prase_datetime(time: u32) -> FsTime {
     // FIXME: parse the year, month, day, hour, min, sec from time
+    let year = ((time >> 25) & 0x7f) as i32 + 1980;
+    let month = (time >> 21) & 0x0f;
+    let day = (time >> 16) & 0x1f;
+    let hour = (time >> 11) & 0x1f;
+    let min = (time >> 5) & 0x3f;
+    let sec = (time & 0x1f) << 1;
 
     if let Single(time) = Utc.with_ymd_and_hms(year, month, day, hour, min, sec) {
         time
@@ -120,19 +151,71 @@ impl ShortFileName {
     }
 
     /// Parse a short file name from a string
-    pub fn parse(name: &str) -> Result<ShortFileName> {
-        // FIXME: implement the parse function
-        //      use `FilenameError` and into `FsError`
-        //      use different error types for following conditions:
-        //
-        //      - use 0x20 ' ' for right padding
-        //      - check if the filename is empty
-        //      - check if the name & ext are too long
-        //      - period `.` means the start of the file extension
-        //      - check if the period is misplaced (after 8 characters)
-        //      - check if the filename contains invalid characters:
-        //        [0x00..=0x1F, 0x20, 0x22, 0x2A, 0x2B, 0x2C, 0x2F, 0x3A,
-        //        0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x5B, 0x5C, 0x5D, 0x7C]
+    pub fn parse(raw: &str) -> Result<ShortFileName> {
+        use FilenameError::*;
+
+        // Get the raw string and trim it
+        let s = raw.trim();
+        if s.is_empty() {
+            return Err(FilenameEmpty.into());
+        }
+        // Some disallowed characters
+        const DISALLOWED: [u8; 16] = [
+            0x20, // space
+            0x22, // "
+            0x2A, // *
+            0x2B, // +
+            0x2C, // ,
+            0x2F, // /
+            0x3A, // :
+            0x3B, // ;
+            0x3C, // <
+            0x3D, // =
+            0x3E, // >
+            0x3F, // ?
+            0x5B, // [
+            0x5C, // '\'
+            0x5D, // ]
+            0x7C, // |
+        ];
+
+        fn contains_invalid_byte(byte: u8) -> bool {
+            byte < 0x20 || DISALLOWED.contains(&byte)
+        }
+        if raw.bytes().any(contains_invalid_byte) {
+            return Err(FilenameError::InvalidCharacter.into());
+        }
+
+        // extract the name and extension
+        let mut parts = s.splitn(2, '.');
+        let name_part = parts.next().unwrap().to_ascii_uppercase();
+        let ext_part = parts.next().map(str::to_ascii_uppercase);
+
+        if name_part.is_empty() {
+            return Err(FilenameEmpty.into());
+        }
+        if name_part.len() > 8 {
+            return Err(NameTooLong.into());
+        }
+        if let Some(ref ext) = ext_part {
+            if ext.len() > 3 {
+                return Err(NameTooLong.into());
+            }
+        }
+
+        // pad the name and extension to the required lengths
+        let mut name_bytes = [0x20u8; 8];
+        name_bytes[..name_part.len()].copy_from_slice(name_part.as_bytes());
+
+        let mut ext_bytes = [0x20u8; 3];
+        if let Some(ext) = ext_part {
+            ext_bytes[..ext.len()].copy_from_slice(ext.as_bytes());
+        }
+
+        Ok(ShortFileName {
+            name: name_bytes,
+            ext: ext_bytes,
+        })
     }
 }
 

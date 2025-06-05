@@ -6,8 +6,8 @@
 
 use super::consts::*;
 use alloc::boxed::Box;
-use x86_64::instructions::port::*;
 use bit_field::BitField;
+use x86_64::instructions::port::*;
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
@@ -184,7 +184,10 @@ impl AtaBus {
         //      - call `write_command` with `drive` and `0` as the block number
         //      - if the status is empty, return `AtaDeviceType::None`
         //      - else return `DeviceError::Unknown` as `FsError`
-        if self.write_command(drive, 0, AtaCommand::IdentifyDevice).is_err() {
+        if self
+            .write_command(drive, 0, AtaCommand::IdentifyDevice)
+            .is_err()
+        {
             if self.status().is_empty() {
                 return Ok(AtaDeviceType::None);
             } else {

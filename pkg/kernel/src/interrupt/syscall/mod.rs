@@ -75,6 +75,21 @@ pub fn dispatcher(context: &mut ProcessContext) {
         // op: u8, key: u32, val: usize -> ret: any
         Syscall::Sem => sys_sem(&args, context),
 
+        // path: &str (arg0 as *const u8, arg1 as len)
+        Syscall::ListDir => list_dir(&args),
+
+        // path: &str (arg0 as *const u8, arg1 as len) -> exists: bool
+        Syscall::Exists => context.set_rax(sys_exists(&args)),
+
+        // path: &str (arg0 as *const u8, arg1 as len) -> content: String
+        Syscall::Cat => {
+            if let Some(content) = sys_cat(&args) {
+                context.set_rax(content.len() as usize);
+            } else {
+                context.set_rax(0);
+            }
+        }
+
         // None
         Syscall::Stat => {
             list_process();

@@ -10,7 +10,7 @@ const N: usize = 5;
 const EAT_TIMES: usize = 3;
 
 static CHOPSTICK: [Semaphore; N] = semaphore_array!(0, 1, 2, 3, 4);
-static ROOM_SIZE:Semaphore = Semaphore::new(5);
+static ROOM_SIZE: Semaphore = Semaphore::new(5);
 static PRINT: SpinLock = SpinLock::new();
 
 #[inline(always)]

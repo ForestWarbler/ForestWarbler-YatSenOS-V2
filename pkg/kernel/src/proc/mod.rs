@@ -24,6 +24,8 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use boot::BootInfo;
 use xmas_elf::ElfFile;
+use storage::*;
+use crate::drivers::filesystem::*;
 
 use crate::proc::vm::ProcessVm;
 use x86_64::VirtAddr;
@@ -141,8 +143,27 @@ pub fn spawn(name: &str) -> Option<ProcessId> {
         app_list.iter().find(|&app| app.name.eq(name))
     })
     .expect("App not found");
+
     elf_spawn(name.to_string(), &app.elf)
 }
+
+// pub fn spawn(path: &str) -> Option<ProcessId> {
+//     let mut file = get_rootfs().open_file(path).ok()?;
+
+//     let mut elf_vec = Vec::<u8>::new();
+//     file.read_all(&mut elf_vec).ok()?;
+
+//     let exec_name = path
+//         .trim_end_matches('/')
+//         .rsplit('/')
+//         .next()
+//         .unwrap_or(path)
+//         .to_string();
+
+//     let elf = ElfFile::new(&elf_vec).ok()?;
+
+//     elf_spawn(exec_name, &elf)
+// }
 
 pub fn elf_spawn(name: String, elf: &ElfFile) -> Option<ProcessId> {
     let pid = x86_64::instructions::interrupts::without_interrupts(|| {

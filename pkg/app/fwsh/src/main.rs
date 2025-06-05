@@ -20,11 +20,15 @@ use chrono::{Datelike, NaiveDateTime, Timelike};
 ///     lsapp        - list applications
 ///     ps           - list processes
 ///     exec <app>   - execute <app>
+///     time         - show current time
+///     ls <dir>     - list files in directory
+///     cwd          - current working directory
+///     cd <dir>     - change current working directory
 /// ───────────────────────────────────────────
 fn main() -> isize {
     println!("► fwsh v0.1 — type \"help\" for help");
 
-    let mut cwd = "/APP/";
+    let mut cwd = "/".to_string();
 
     loop {
         print!("{} $ ", cwd);
@@ -103,6 +107,103 @@ fn main() -> isize {
                 if ret == -1 {
                     println!("Failed to execute {}", app_name);
                 }
+            }
+
+            "ls" => {
+                if token.len() < 2 {
+                    sys_ls(&cwd);
+                    continue;
+                }
+                let dir = token[1];
+                // Create absolute path
+                let path = if dir.starts_with('/') {
+                    dir.to_string()
+                } else {
+                    if cwd == "/" {
+                        format!("/{dir}")
+                    } else {
+                        format!("{cwd}/{dir}")
+                    }
+                };
+                // Format path
+                let mut stack: Vec<&str> = Vec::new();
+                for part in path.split('/') {
+                    match part {
+                        "" | "." => {}
+                        ".." => {
+                            stack.pop();
+                        }
+                        p => stack.push(p),
+                    }
+                }
+                let path = if stack.is_empty() {
+                    "/".to_string()
+                } else {
+                    format!("/{}", stack.join("/"))
+                };
+                // Check if the path exists
+                if dir_exists(&path) {
+                    sys_list_dir(&path);
+                } else {
+                    println!("Directory does not exist: {}", path);
+                }
+            }
+
+            "cwd" => {
+                println!("Current working directory: {}", cwd);
+            }
+
+            "cd" => {
+                // Get target directory
+                let target = if token.len() < 2 || token[1].is_empty() {
+                    "/"
+                } else {
+                    token[1]
+                };
+
+                // Create absolute path
+                let mut path = if target.starts_with('/') {
+                    target.to_string()
+                } else {
+                    if cwd == "/" {
+                        format!("/{target}")
+                    } else {
+                        format!("{cwd}/{target}")
+                    }
+                };
+
+                // Format path
+                let mut stack: Vec<&str> = Vec::new();
+                for part in path.split('/') {
+                    match part {
+                        "" | "." => {}
+                        ".." => {
+                            stack.pop();
+                        }
+                        p => stack.push(p),
+                    }
+                }
+                path = if stack.is_empty() {
+                    "/".to_string()
+                } else {
+                    format!("/{}", stack.join("/"))
+                };
+
+                // Check if the path exists
+                if dir_exists(&path) {
+                    cwd = path;
+                } else {
+                    println!("Directory does not exist: {}", path);
+                }
+            }
+
+            "cat" => {
+                if token.len() < 2 {
+                    println!("Usage: cat <file_path>");
+                    continue;
+                }
+                let file_path = token[1];
+                sys_cat(file_path);
             }
 
             unknown => {
