@@ -54,6 +54,8 @@ pub fn init(boot_info: &'static BootInfo) {
     x86_64::instructions::interrupts::enable();
     info!("Interrupts Enabled.");
 
+    grow_stack(); // test stack growth
+
     info!("YatSenOS initialized.");
 }
 
@@ -72,4 +74,24 @@ pub fn wait(init: proc::ProcessId) {
 pub fn shutdown() -> ! {
     info!("YatSenOS shutting down.");
     uefi::runtime::reset(ResetType::SHUTDOWN, Status::SUCCESS, None);
+}
+
+#[inline(never)]
+#[unsafe(no_mangle)]
+pub fn grow_stack() {
+    const STACK_SIZE: usize = 1024 * 4;
+    const STEP: usize = 64;
+
+    let mut array = [0u64; STACK_SIZE];
+    info!("Stack: {:?}", array.as_ptr());
+
+    // test write
+    for i in (0..STACK_SIZE).step_by(STEP) {
+        array[i] = i as u64;
+    }
+
+    // test read
+    for i in (0..STACK_SIZE).step_by(STEP) {
+        assert_eq!(array[i], i as u64);
+    }
 }

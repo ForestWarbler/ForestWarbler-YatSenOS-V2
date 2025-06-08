@@ -8,6 +8,7 @@ use crate::proc::manager::get_process_manager;
 use crate::proc::*;
 use crate::utils::*;
 use alloc::string::String;
+use x86_64::VirtAddr;
 
 use super::SyscallArgs;
 
@@ -154,4 +155,20 @@ pub fn sys_cat(args: &SyscallArgs) -> Option<String> {
     };
 
     filesystem::cat(path)
+}
+
+pub fn sys_brk(args: &SyscallArgs) -> usize {
+    let new_heap_end = if args.arg0 == 0 {
+        None
+    } else {
+        Some(VirtAddr::new(args.arg0 as u64))
+    };
+    match brk(new_heap_end) {
+        Some(new_heap_end) => {
+            debug!("New heap end: {:#x}", new_heap_end);
+            new_heap_end.as_u64() as usize},
+        None => {
+            debug!("Failed to set new heap end");
+            !0},
+    }
 }

@@ -20,12 +20,12 @@ pub use pid::ProcessId;
 pub use sync::*;
 use uefi::proto::debug;
 pub mod vm;
+use crate::drivers::filesystem::*;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use boot::BootInfo;
-use xmas_elf::ElfFile;
 use storage::*;
-use crate::drivers::filesystem::*;
+use xmas_elf::ElfFile;
 
 use crate::proc::vm::ProcessVm;
 use x86_64::VirtAddr;
@@ -42,17 +42,12 @@ pub enum ProgramStatus {
 
 /// init process manager
 pub fn init(boot_info: &'static BootInfo) {
-    let proc_vm = ProcessVm::new(PageTableContext::new()).init_kernel_vm();
+    let proc_vm = ProcessVm::new(PageTableContext::new()).init_kernel_vm(&boot_info.kernel_pages);
 
     trace!("Init kernel vm: {:#?}", proc_vm);
 
     // kernel process
-    let kproc = Process::new(
-        String::from("kernel_proc"),
-        None,
-        PageTableContext::new(),
-        None,
-    );
+    let kproc = Process::new(String::from("kernel_proc"), None, Some(proc_vm), None);
 
     let app_list = boot_info.loaded_apps.as_ref();
     manager::init(kproc, app_list);
@@ -268,6 +263,13 @@ pub fn sem_wait(key: u32, context: &mut ProcessContext) {
             }
             _ => unreachable!(),
         }
+    })
+}
+
+pub fn brk(addr: Option<VirtAddr>) -> Option<VirtAddr> {
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        // NOTE: `brk` does not need to get write lock
+        get_process_manager().current().read().brk(addr)
     })
 }
 

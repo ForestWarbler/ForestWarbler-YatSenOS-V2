@@ -1,8 +1,8 @@
 use super::ata::*;
 use alloc::boxed::Box;
 use alloc::format;
-use alloc::string::ToString;
 use alloc::string::String;
+use alloc::string::ToString;
 use alloc::vec::Vec;
 use chrono::DateTime;
 use storage::fat16::Fat16;
@@ -145,16 +145,14 @@ pub fn cat(path: &str) -> Option<String> {
     loop {
         let n = file.read(&mut tmp).ok()?;
         if n == 0 {
-            break;                         // EOF
+            break; // EOF
         }
         buf.extend_from_slice(&tmp[..n]);
     }
 
     let s = match core::str::from_utf8(&buf) {
         Ok(text) => text.to_string(),
-        Err(_)   => buf.iter()
-                       .map(|b| format!("{:02X} ", b))
-                       .collect(),
+        Err(_) => buf.iter().map(|b| format!("{:02X} ", b)).collect(),
     };
 
     println!("{}", s);

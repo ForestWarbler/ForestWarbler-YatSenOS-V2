@@ -12,6 +12,8 @@ pub enum Syscall {
 
     Time = 2,
 
+    Brk = 12,
+
     GetPid = 39,
 
     Fork = 58,

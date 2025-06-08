@@ -10,6 +10,7 @@ use arrayvec::{ArrayString, ArrayVec};
 use core::ptr::NonNull;
 use x86_64::VirtAddr;
 use x86_64::registers::control::Cr3;
+use x86_64::structures::paging::page::PageRangeInclusive;
 use x86_64::structures::paging::{OffsetPageTable, PageTable};
 use xmas_elf::ElfFile;
 
@@ -38,6 +39,8 @@ pub type AppListRef = Option<&'static AppList>;
 
 pub type MemoryMap = ArrayVec<MemoryDescriptor, 256>;
 
+pub type KernelPages = ArrayVec<PageRangeInclusive, 8>;
+
 /// This structure represents the information that the bootloader passes to the kernel.
 pub struct BootInfo {
     /// The memory map
@@ -54,6 +57,9 @@ pub struct BootInfo {
 
     /// The list of applications
     pub loaded_apps: Option<AppList>,
+
+    /// Kernel pages
+    pub kernel_pages: KernelPages,
 }
 
 /// Get current page table from CR3

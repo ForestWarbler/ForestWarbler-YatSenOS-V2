@@ -9,9 +9,10 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec;
 use allocator::UEFIFrameAllocator;
-use elf::{load_elf, map_physical_memory, map_range};
+use elf::{load_elf, map_physical_memory, map_pages};
 use fs::{load_file, open_file};
 use uefi::mem::memory_map::MemoryMap;
+use uefi::proto::debug;
 use uefi::{Status, entry};
 use x86_64::registers::control::*;
 use xmas_elf::ElfFile;
@@ -77,19 +78,33 @@ fn efi_main() -> Status {
     );
 
     // FIXME: load and map the kernel elf file
-    load_elf(
+    let kernel_pages = load_elf(
         &elf,
         config.physical_memory_offset,
         &mut page_table,
         &mut frame_allocator,
-        true,
+        false,
     )
     .expect("Failed to load ELF file");
 
+    let (stack_start, stack_size) = if config.kernel_stack_auto_grow > 0 {
+        let init_size = config.kernel_stack_auto_grow;
+        let bottom_offset = (config.kernel_stack_size - init_size) * 0x1000;
+        let init_bottom = config.kernel_stack_address + bottom_offset;
+        (init_bottom, init_size)
+    } else {
+        (config.kernel_stack_address, config.kernel_stack_size)
+    };
+
+    debug!(
+        "Kernel stack start: {:#x}, size: {:#x}",
+        stack_start, stack_size
+    );
+
     // FIXME: map kernel stack
-    map_range(
-        config.kernel_stack_address,
-        config.kernel_stack_size,
+    map_pages(
+        stack_start,
+        stack_size,
         &mut page_table,
         &mut frame_allocator,
         false,
@@ -122,6 +137,7 @@ fn efi_main() -> Status {
     info!("Exiting boot services...");
 
     let mmap = unsafe { uefi::boot::exit_boot_services(MemoryType::LOADER_DATA) };
+    let kernel_pages: KernelPages = kernel_pages.iter().map(|page_range| *page_range).collect();
     // NOTE: alloc & log are no longer available
 
     // construct BootInfo
@@ -131,6 +147,7 @@ fn efi_main() -> Status {
         system_table,
         log_level: config.log_level,
         loaded_apps: apps,
+        kernel_pages,
     };
 
     // align stack to 8 bytes

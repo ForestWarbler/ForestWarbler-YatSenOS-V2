@@ -1,6 +1,6 @@
-#![cfg_attr(not(test), no_std)]
 #![allow(dead_code, unused_imports)]
 #![feature(alloc_error_handler)]
+#![cfg_attr(not(test), no_std)]
 
 #[macro_use]
 pub mod macros;
@@ -11,21 +11,26 @@ extern crate syscall_def;
 #[macro_use]
 pub mod io;
 pub mod allocator;
+pub mod rand;
+pub mod sync;
 pub extern crate alloc;
 
-pub mod rand;
-mod sync;
 mod syscall;
 
 use core::fmt::*;
 
 pub use alloc::*;
+pub use chrono::*;
 pub use io::*;
-pub use rand::*;
 pub use sync::*;
 pub use syscall::*;
 
 use core::time::Duration;
+
+pub fn init() {
+    #[cfg(feature = "brk_alloc")]
+    crate::allocator::init();
+}
 
 #[macro_export]
 macro_rules! print {
@@ -82,4 +87,8 @@ pub fn dir_exists(path: &str) -> bool {
 
 pub fn cat(path: &str) -> usize {
     sys_cat(path)
+}
+
+pub fn brk(addr: Option<usize>) -> core::result::Result<usize, &'static str> {
+    sys_brk(addr)
 }

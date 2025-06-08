@@ -2,10 +2,13 @@
 
 #[macro_use]
 extern crate log;
+extern crate alloc;
 
 use core::ptr::{copy_nonoverlapping, write_bytes};
 
+use alloc::vec::Vec;
 use x86_64::structures::paging::page::PageRange;
+use x86_64::structures::paging::page::PageRangeInclusive;
 use x86_64::structures::paging::{mapper::*, *};
 use x86_64::{PhysAddr, VirtAddr, align_up};
 use xmas_elf::{ElfFile, program};
@@ -38,7 +41,7 @@ pub fn map_physical_memory(
 /// Map a range of memory
 ///
 /// allocate frames and map to specified address (R/W)
-pub fn map_range(
+pub fn map_pages(
     addr: u64,
     count: u64,
     page_table: &mut impl Mapper<Size4KiB>,
@@ -91,6 +94,36 @@ pub fn map_range(
     Ok(Page::range(range_start, range_end))
 }
 
+pub fn map_range(
+    page_range: PageRangeInclusive<Size4KiB>,
+    page_table: &mut impl Mapper<Size4KiB>,
+    frame_allocator: &mut impl FrameAllocator<Size4KiB>,
+    user_access: bool,
+) -> Result<(), MapToError<Size4KiB>> {
+    trace!("Mapping range: {:?}", page_range);
+
+    // default flags for stack
+    let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
+    let flags = if user_access {
+        flags | PageTableFlags::USER_ACCESSIBLE
+    } else {
+        flags
+    };
+
+    for page in page_range {
+        let frame = frame_allocator
+            .allocate_frame()
+            .ok_or(MapToError::FrameAllocationFailed)?;
+        unsafe {
+            page_table
+                .map_to(page, frame, flags, frame_allocator)?
+                .flush();
+        }
+    }
+
+    Ok(())
+}
+
 /// Load & Map ELF file
 ///
 /// load segments in ELF file to new frames and set page table
@@ -100,40 +133,37 @@ pub fn load_elf(
     page_table: &mut impl Mapper<Size4KiB>,
     frame_allocator: &mut impl FrameAllocator<Size4KiB>,
     user_access: bool,
-) -> Result<(), MapToError<Size4KiB>> {
-    let file_buf = elf.input.as_ptr();
+) -> Result<Vec<PageRangeInclusive>, MapToError<Size4KiB>> {
+    trace!("Loading ELF file...{:?}", elf.input.as_ptr());
 
-    info!("Loading ELF file... @ {:#x}", file_buf as u64);
-
-    for segment in elf.program_iter() {
-        if segment.get_type().unwrap() != program::Type::Load {
-            continue;
-        }
-
-        load_segment(
-            file_buf,
-            physical_offset,
-            &segment,
-            page_table,
-            frame_allocator,
-            user_access,
-        )?
-    }
-
-    Ok(())
+    // use iterator and functional programming to load segments
+    // and collect the loaded pages into a vector
+    elf.program_iter()
+        .filter(|segment| segment.get_type().unwrap() == program::Type::Load)
+        .map(|segment| {
+            load_segment(
+                elf,
+                physical_offset,
+                &segment,
+                page_table,
+                frame_allocator,
+                user_access,
+            )
+        })
+        .collect()
 }
 
 /// Load & Map ELF segment
 ///
 /// load segment to new frame and set page table
 fn load_segment(
-    file_buf: *const u8,
+    elf: &ElfFile,
     physical_offset: u64,
     segment: &program::ProgramHeader,
     page_table: &mut impl Mapper<Size4KiB>,
     frame_allocator: &mut impl FrameAllocator<Size4KiB>,
     user_access: bool,
-) -> Result<(), MapToError<Size4KiB>> {
+) -> Result<PageRangeInclusive, MapToError<Size4KiB>> {
     trace!("Loading & mapping segment: {:#x?}", segment);
 
     let mem_size = segment.mem_size();
@@ -161,7 +191,7 @@ fn load_segment(
     let end_page = Page::containing_address(virt_start_addr + file_size - 1u64);
     let pages = Page::range_inclusive(start_page, end_page);
 
-    let data = unsafe { file_buf.add(file_offset as usize) };
+    let data = unsafe { elf.input.as_ptr().add(file_offset as usize) };
 
     for (idx, page) in pages.enumerate() {
         let frame = frame_allocator
@@ -231,10 +261,11 @@ fn load_segment(
         }
     }
 
-    Ok(())
+    let end_page = Page::containing_address(virt_start_addr + mem_size - 1u64);
+    Ok(Page::range_inclusive(start_page, end_page))
 }
 
-pub fn unmap_range(
+pub fn unmap_pages(
     addr: u64,
     count: u64,
     page_table: &mut impl Mapper<Size4KiB>,
@@ -258,5 +289,30 @@ pub fn unmap_range(
         frame.1.flush();
     }
 
+    Ok(())
+}
+
+pub fn unmap_range(
+    page_range: PageRangeInclusive<Size4KiB>,
+    page_table: &mut impl Mapper<Size4KiB>,
+    frame_deallocator: &mut impl FrameDeallocator<Size4KiB>,
+    dealloc: bool,
+) -> Result<(), MapToError<Size4KiB>> {
+    trace!(
+        "Unmap Range: {:#x} - {:#x} ({})",
+        page_range.start.start_address().as_u64(),
+        page_range.end.start_address().as_u64(),
+        page_range.count()
+    );
+
+    for page in page_range {
+        let frame = page_table.unmap(page).unwrap();
+        if dealloc {
+            unsafe {
+                frame_deallocator.deallocate_frame(frame.0);
+            }
+        }
+        frame.1.flush();
+    }
     Ok(())
 }

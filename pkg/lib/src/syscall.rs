@@ -84,34 +84,51 @@ pub fn sys_exit(code: isize) -> ! {
     unreachable!("This process should be terminated by now.")
 }
 
+#[inline(always)]
 pub fn sys_fork() -> u16 {
     syscall!(Syscall::Fork) as u16
 }
 
+#[inline(always)]
 pub fn sys_new_sem(key: u32, init_value: usize) -> usize {
     syscall!(Syscall::Sem, 0, key, init_value)
 }
 
+#[inline(always)]
 pub fn sys_remove_sem(key: u32) -> usize {
     syscall!(Syscall::Sem, 1, key)
 }
 
+#[inline(always)]
 pub fn sys_sem_signal(key: u32) -> usize {
     syscall!(Syscall::Sem, 2, key)
 }
 
+#[inline(always)]
 pub fn sys_sem_wait(key: u32) -> usize {
     syscall!(Syscall::Sem, 3, key)
 }
 
+#[inline(always)]
 pub fn sys_list_dir(path: &str) -> usize {
     syscall!(Syscall::ListDir, path.as_ptr() as u64, path.len() as u64) as usize
 }
 
+#[inline(always)]
 pub fn sys_exists(path: &str) -> bool {
     syscall!(Syscall::Exists, path.as_ptr() as u64, path.len() as u64) != 0
 }
 
+#[inline(always)]
 pub fn sys_cat(path: &str) -> usize {
     syscall!(Syscall::Cat, path.as_ptr() as u64, path.len() as u64)
+}
+
+#[inline(always)]
+pub fn sys_brk(addr: Option<usize>) -> Result<usize, &'static str> {
+    const BRK_FAILED: usize = !0;
+    match syscall!(Syscall::Brk, addr.unwrap_or(0)) {
+        BRK_FAILED => Err("brk failed"),
+        ret => Ok(ret as usize),
+    }
 }

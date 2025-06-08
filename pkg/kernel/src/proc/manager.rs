@@ -178,7 +178,12 @@ impl ProcessManager {
         let kproc = self.get_proc(&KERNEL_PID).unwrap();
         let page_table = kproc.read().clone_page_table();
         // let proc_vm = Some(ProcessVm::new(page_table));
-        let proc = Process::new(name, parent, page_table, proc_data);
+        let proc = Process::new(
+            name,
+            parent,
+            Some(ProcessVm::new(page_table.clone_level_4())),
+            proc_data,
+        );
         let pid = proc.pid();
 
         let mut inner = proc.write();
@@ -186,8 +191,12 @@ impl ProcessManager {
         inner.load_elf(elf);
         // FIXME: alloc new stack for process
         let stack_top: VirtAddr = inner.vm_mut().init_user_proc_stack(pid);
-        info!("spawn: pid={} entry={:#x} stack_top={:#x}", pid,
-        elf.header.pt2.entry_point(), stack_top);
+        info!(
+            "spawn: pid={} entry={:#x} stack_top={:#x}",
+            pid,
+            elf.header.pt2.entry_point(),
+            stack_top
+        );
         inner.init_user_stack_frame(
             VirtAddr::new(elf.header.pt2.entry_point() as u64),
             stack_top,
@@ -385,6 +394,12 @@ impl ProcessManager {
         )
         .as_str();
 
+        // output += &Self::format_usage(
+        //     "Memory",
+        //     used as usize,
+        //     total as usize,
+        // );
+
         // Print Memory Usage of each process
         output += "\nProcess Memory Usage:\n";
         self.processes
@@ -392,16 +407,7 @@ impl ProcessManager {
             .values()
             .filter(|p| p.read().status() != ProgramStatus::Dead)
             .for_each(|p| {
-                let mem_usage = p.read().vm().memory_usage();
-                let (size, unit) = humanized_size(mem_usage);
-                output += format!(
-                    "  {}#{}: {:>7.*} {}\n",
-                    p.read().name(),
-                    p.pid(),
-                    3,
-                    size,
-                    unit
-                )
+                output += format!("{}", p)
                 .as_str();
             });
 
@@ -410,6 +416,24 @@ impl ProcessManager {
         output += &processor::print_processors();
 
         print!("{}", output);
+        drop(alloc);
+    }
+
+    fn format_usage(name: &str, used: usize, total: usize) -> String {
+        let (used_float, used_unit) = humanized_size(used as u64);
+        let (total_float, total_unit) = humanized_size(total as u64);
+
+        format!(
+            "{:<6} : {:>6.*} {:>3} / {:>6.*} {:>3} ({:>5.2}%)\n",
+            name,
+            2,
+            used_float,
+            used_unit,
+            2,
+            total_float,
+            total_unit,
+            used as f32 / total as f32 * 100.0
+        )
     }
 
     pub fn get_exit_code(&self, pid: &ProcessId) -> Option<isize> {

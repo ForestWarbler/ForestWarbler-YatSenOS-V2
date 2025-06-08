@@ -23,9 +23,9 @@ pub fn init_user_heap() -> Result<(), MapToError<Size4KiB>> {
     // Get global frame allocator
     let frame_allocator = &mut *super::get_frame_alloc_for_sure();
 
-    // FIXME: use elf::map_range to allocate & map
+    // FIXME: use elf::map_pages to allocate & map
     //        frames (R/W/User Access)
-    elf::map_range(
+    elf::map_pages(
         USER_HEAP_START as u64,
         USER_HEAP_PAGE as u64,
         mapper,

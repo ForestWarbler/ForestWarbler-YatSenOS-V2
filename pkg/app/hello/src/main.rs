@@ -8,54 +8,39 @@ use lib::*;
 
 static mut M: u64 = 0xdeadbeef;
 
-fn main() -> isize {
-    let mut c = 32;
-    let m_ptr = &raw mut M;
+const MOD: u64 = 1000000007;
 
-    // do not alloc heap before `fork`
-    // which may cause unexpected behavior since we won't copy the heap in `fork`
-    let pid = sys_fork();
-
-    if pid == 0 {
-        println!("I am the child process");
-
-        assert_eq!(c, 32);
-
-        unsafe {
-            println!("child read value of M: {:#x}", *m_ptr);
-            *m_ptr = 0x2333;
-            println!("child changed the value of M: {:#x}", *m_ptr);
-        }
-
-        c += 32;
+fn factorial(n: u64) -> u64 {
+    if n == 0 {
+        1
     } else {
-        println!("I am the parent process");
+        n * factorial(n - 1) % MOD
+    }
+}
 
-        sys_stat();
+fn main() -> isize {
+    print!("Input n: ");
 
-        assert_eq!(c, 32);
+    let input = lib::stdin().read_line();
 
-        println!("Waiting for child to exit...");
+    // prase input as u64
+    let n = input.parse::<u64>().unwrap();
 
-        let ret = sys_wait_pid(pid);
-
-        println!("Child exited with status {}", ret);
-
-        assert_eq!(ret, 64);
-
-        unsafe {
-            println!("parent read value of M: {:#x}", *m_ptr);
-            assert_eq!(*m_ptr, 0x2333);
-        }
-
-        c += 1024;
-
-        assert_eq!(c, 1056);
+    if n > 1000000 {
+        println!("n must be less than 1000000");
+        return 1;
     }
 
-    println!("Final value of c: {}", c);
+    // calculate factorial
+    let result = factorial(n);
 
-    c
+    // print system status
+    sys_stat();
+
+    // print result
+    println!("The factorial of {} under modulo {} is {}.", n, MOD, result);
+
+    0
 }
 
 entry!(main);

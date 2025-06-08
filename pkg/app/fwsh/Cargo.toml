@@ -6,3 +6,4 @@ edition.workspace = true
 [dependencies]
 lib = { workspace = true }
 chrono = { workspace = true }
+num-traits = { version = "0.2.19", default-features = false, features = ["libm"] }

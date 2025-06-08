@@ -1,4 +1,5 @@
 use super::*;
+use crate::humanized_size;
 use crate::memory::*;
 use crate::proc::sync::*;
 use crate::proc::vm::ProcessVm;
@@ -50,13 +51,14 @@ impl Process {
     pub fn new(
         name: String,
         parent: Option<Weak<Process>>,
-        page_table: PageTableContext,
+        proc_vm: Option<ProcessVm>,
         proc_data: Option<ProcessData>,
     ) -> Arc<Self> {
         let name = name.to_ascii_lowercase();
 
         // create context
         let pid = ProcessId::new();
+        let page_table = proc_vm.as_ref().map(|vm| vm.page_table.clone_level_4());
 
         let inner = ProcessInner {
             name,
@@ -66,8 +68,8 @@ impl Process {
             ticks_passed: 0,
             exit_code: None,
             children: Vec::new(),
-            proc_vm: Some(ProcessVm::new(page_table.clone_level_4())),
-            page_table: Some(page_table),
+            proc_vm: proc_vm,
+            page_table: page_table,
             proc_data: Some(proc_data.unwrap_or_default()),
         };
 
@@ -205,7 +207,6 @@ impl ProcessInner {
         self.status = ProgramStatus::Dead;
 
         // FIXME: take and drop unused resources
-        self.vm_mut().clean_user_stack();
         self.page_table.take();
         self.proc_vm.take();
         self.proc_data.take();
@@ -263,6 +264,10 @@ impl ProcessInner {
     pub fn set_rax(&mut self, value: usize) {
         self.context.set_rax(value);
     }
+
+    pub fn brk(&self, addr: Option<VirtAddr>) -> Option<VirtAddr> {
+        self.proc_vm.as_ref().unwrap().brk(addr)
+    }
 }
 
 impl core::ops::Deref for Process {
@@ -311,13 +316,16 @@ impl core::fmt::Debug for Process {
 impl core::fmt::Display for Process {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         let inner = self.inner.read();
+        let (size, unit) = humanized_size(inner.proc_vm.as_ref().map_or(0, |vm| vm.memory_usage()));
         write!(
             f,
-            " #{:-3} | #{:-3} | {:12} | {:7} | {:?}",
+            " #{:-3} | #{:-3} | {:12} | {:7} | {:>5.1} {} | {:?}",
             self.pid.0,
             inner.parent().map(|p| p.pid.0).unwrap_or(0),
             inner.name,
             inner.ticks_passed,
+            size,
+            unit,
             inner.status
         )?;
         Ok(())

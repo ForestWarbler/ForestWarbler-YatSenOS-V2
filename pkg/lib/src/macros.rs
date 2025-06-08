@@ -7,6 +7,7 @@ macro_rules! entry {
     ($fn:ident) => {
         #[unsafe(export_name = "_start")]
         pub extern "C" fn __impl_start() {
+            lib::init();
             let ret = $fn();
             // FIXME: after syscall, add lib::sys_exit(ret);
             lib::sys_exit(ret);

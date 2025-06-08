@@ -115,6 +115,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
+ "libm",
 ]
 
 [[package]]
@@ -371,6 +372,8 @@ dependencies = [
 name = "yslib"
 version = "0.4.0"
 dependencies = [
+ "chrono",
+ "linked_list_allocator",
  "rand",
  "rand_chacha",
  "ysos_syscall",
@@ -386,6 +389,13 @@ dependencies = [
  "x86_64",
  "xmas-elf",
  "ysos_elf",
+]
+
+[[package]]
+name = "ysos_brktest"
+version = "0.4.0"
+dependencies = [
+ "yslib",
 ]
 
 [[package]]
@@ -406,6 +416,7 @@ dependencies = [
 name = "ysos_elf"
 version = "0.4.0"
 dependencies = [
+ "arrayvec",
  "log",
  "x86_64",
  "xmas-elf",
@@ -423,6 +434,7 @@ name = "ysos_fwsh"
 version = "0.4.0"
 dependencies = [
  "chrono",
+ "num-traits",
  "yslib",
 ]
 
